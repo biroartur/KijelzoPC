@@ -1,11 +1,12 @@
 # Compiled output
 out/
 *.class
+# Exception: include the release JAR for easy Pi deployment
+!out/KijelzoPC.jar
 
 # Runtime files
 log.txt
 bt_no.txt*
-konyvek.txt
 
 # IntelliJ IDEA user-specific
 .idea/workspace.xml
