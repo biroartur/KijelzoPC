@@ -1,0 +1,15 @@
+[Unit]
+Description=KijelzoPC Church Display Server
+After=network.target graphical.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/kijelzopc
+ExecStart=/usr/bin/java -Dfile.encoding=utf-8 -jar /home/pi/kijelzopc/out/KijelzoPC.jar
+Restart=on-failure
+RestartSec=5
+Environment=DISPLAY=:0
+
+[Install]
+WantedBy=graphical.target

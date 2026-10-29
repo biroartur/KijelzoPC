@@ -64,8 +64,8 @@ public class WSServer {
 
             public void actionPerformed(ActionEvent e) {
                 try {
-                    //shutdown (-s) with timeout(-t seconds) comment (-c)
-                    Runtime.getRuntime().exec("shutdown -s -t 60 -c \"Shutdown due to inactivity, by kijelzoPC\"");
+                    // Linux shutdown (Raspberry Pi)
+                    Runtime.getRuntime().exec(new String[]{"sudo", "shutdown", "-h", "+1"});
                 } catch (IOException ex) {
                     Logger.getLogger(Main.class.getName()).log(Level.SEVERE, null, ex);
                 }
