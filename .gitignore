@@ -1,0 +1,18 @@
+# Compiled output
+out/
+*.class
+
+# Runtime files
+log.txt
+bt_no.txt*
+konyvek.txt
+
+# IntelliJ IDEA user-specific
+.idea/workspace.xml
+.idea/tasks.xml
+.idea/shelf/
+*.iws
+
+# OS
+.DS_Store
+Thumbs.db
