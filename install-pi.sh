@@ -37,7 +37,22 @@ NoDisplay=false
 X-GNOME-Autostart-enabled=true
 EOF
 
-chown -R "$TARGET_USER:$TARGET_USER" "$APP" "$TARGET_HOME/.config/autostart"
+cp "$SRC/wallpaper/kijelzo-wallpaper.jpg" "$APP/"
+
+# Kijelzo wallpaper on first install only: a desktop config of the user's own is never overwritten
+PCMANFM="$TARGET_HOME/.config/pcmanfm/default"
+if [ ! -f "$PCMANFM/desktop-items-0.conf" ] && [ -f /etc/xdg/pcmanfm/default/desktop-items-0.conf ]; then
+    mkdir -p "$PCMANFM"
+    for n in 0 1; do
+        [ -f "/etc/xdg/pcmanfm/default/desktop-items-$n.conf" ] || continue
+        sed -e "s|^wallpaper=.*|wallpaper=$APP/kijelzo-wallpaper.jpg|" \
+            -e "s|^wallpaper_mode=.*|wallpaper_mode=crop|" \
+            -e "s|^desktop_bg=.*|desktop_bg=#0b0d12|" \
+            "/etc/xdg/pcmanfm/default/desktop-items-$n.conf" > "$PCMANFM/desktop-items-$n.conf"
+    done
+fi
+
+chown -R "$TARGET_USER:$TARGET_USER" "$APP" "$TARGET_HOME/.config/autostart" "$TARGET_HOME/.config/pcmanfm" 2>/dev/null || true
 
 # The display must never blank or sleep (needs passwordless sudo, as the pi user has)
 if sudo -n true 2>/dev/null; then
