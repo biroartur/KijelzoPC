@@ -5,7 +5,12 @@
 set -e
 
 SRC="$(cd "$(dirname "$0")" && pwd)"
-TARGET_USER="${SUDO_USER:-$(whoami)}"
+# Only trust SUDO_USER when running as root ("sudo bash install-pi.sh"); under "sudo -u pi" it names the caller
+if [ "$(id -u)" -eq 0 ] && [ -n "$SUDO_USER" ]; then
+    TARGET_USER="$SUDO_USER"
+else
+    TARGET_USER="$(whoami)"
+fi
 TARGET_HOME=$(getent passwd "$TARGET_USER" | cut -d: -f6)
 APP="$TARGET_HOME/kijelzopc"
 STATIC_IP="192.168.1.12"
