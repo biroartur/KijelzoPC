@@ -52,10 +52,33 @@ if [ ! -f "$PCMANFM/desktop-items-0.conf" ] && [ -f /etc/xdg/pcmanfm/default/des
     done
 fi
 
+# Dark desktop (theme, black taskbar, window frames) once on first install; later manual changes are kept
+if [ ! -f "$APP/.dark-theme-applied" ] && [ -d /usr/share/themes/PiXonyx ]; then
+    XS="$TARGET_HOME/.config/xsettingsd/xsettingsd.conf"
+    if [ ! -f "$XS" ] && [ -f /etc/xsettingsd/xsettingsd.conf ]; then
+        mkdir -p "$(dirname "$XS")"
+        cp /etc/xsettingsd/xsettingsd.conf "$XS"
+    fi
+    if [ -f "$XS" ]; then
+        sed -i -e 's|^Net/ThemeName .*|Net/ThemeName "PiXonyx"|' \
+            -e 's|bar_bg_color:#[0-9a-f]*|bar_bg_color:#000000000000|' \
+            -e 's|bar_fg_color:#[0-9a-f]*|bar_fg_color:#ffffffffffff|' "$XS"
+    fi
+    if [ ! -f "$TARGET_HOME/.config/labwc/rc.xml" ] && [ -f /etc/xdg/labwc/rc.xml ]; then
+        mkdir -p "$TARGET_HOME/.config/labwc"
+        sed 's|<name>PiXtrix</name>|<name>PiXonyx</name>|' /etc/xdg/labwc/rc.xml > "$TARGET_HOME/.config/labwc/rc.xml"
+    fi
+    sudo -n -u "$TARGET_USER" dbus-run-session sh -c \
+        "gsettings set org.gnome.desktop.interface gtk-theme PiXonyx; gsettings set org.gnome.desktop.interface color-scheme prefer-dark" \
+        >/dev/null 2>&1 || true
+    touch "$APP/.dark-theme-applied"
+fi
+
 # Console output goes to RAM (/tmp); the app's own log is in logs/ (one file per day, kept 90 days)
 rm -f "$APP/kijelzopc.out"
 
-chown -R "$TARGET_USER:$TARGET_USER" "$APP" "$TARGET_HOME/.config/autostart" "$TARGET_HOME/.config/pcmanfm" 2>/dev/null || true
+chown -R "$TARGET_USER:$TARGET_USER" "$APP" "$TARGET_HOME/.config/autostart" "$TARGET_HOME/.config/pcmanfm" \
+    "$TARGET_HOME/.config/xsettingsd" "$TARGET_HOME/.config/labwc" 2>/dev/null || true
 
 # The display must never blank or sleep (needs passwordless sudo, as the pi user has)
 if sudo -n true 2>/dev/null; then

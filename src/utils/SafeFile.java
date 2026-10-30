@@ -28,5 +28,17 @@ public final class SafeFile {
         }
         Files.move(tmp.toPath(), target.getAbsoluteFile().toPath(),
                 StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+        // Flush the directory too, so the rename itself survives a power cut right after it.
+        // Not possible on Windows (directories can't be opened), where NTFS journals renames anyway.
+        try {
+            java.nio.channels.FileChannel dirChannel = java.nio.channels.FileChannel.open(dir.toPath(),
+                    java.nio.file.StandardOpenOption.READ);
+            try {
+                dirChannel.force(true);
+            } finally {
+                dirChannel.close();
+            }
+        } catch (IOException ignored) {
+        }
     }
 }
