@@ -55,6 +55,7 @@ public class kijelzoGUI {
 
     public kijelzoGUI() {
         GraphicsConfiguration gc = null;
+        GraphicsDevice displayDevice;
         GraphicsConfiguration[] gcss = new GraphicsConfiguration[100];
         {
             GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
@@ -73,7 +74,8 @@ public class kijelzoGUI {
 //                    gc = gcs[i];
 //                    }
 //                }
-            gc = gs[Integer.parseInt(properties.getProperty(SCREEN_ID))].getDefaultConfiguration();
+            displayDevice = gs[Integer.parseInt(properties.getProperty(SCREEN_ID))];
+            gc = displayDevice.getDefaultConfiguration();
         }
 
 
@@ -149,7 +151,17 @@ public class kijelzoGUI {
         time.setFont(timefont);
 
 
+        f.setCursor(Toolkit.getDefaultToolkit().createCustomCursor(
+                new java.awt.image.BufferedImage(16, 16, java.awt.image.BufferedImage.TYPE_INT_ARGB),
+                new Point(0, 0), "hidden"));
+
         f.setVisible(true);
+
+        // On Linux desktops a screen-sized window stays below the taskbar; real fullscreen covers it.
+        // Not on Windows: exclusive fullscreen there minimizes the window whenever it loses focus.
+        if (!System.getProperty("os.name", "").startsWith("Windows") && displayDevice.isFullScreenSupported()) {
+            displayDevice.setFullScreenWindow(f);
+        }
 
         TimeThread tt = new TimeThread();
         tt.start();
