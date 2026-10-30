@@ -53,7 +53,10 @@ public class Main {
     /**
      * @param args the command line arguments
      */
-    public static void main(String[] args) throws UnsupportedEncodingException {
+    private static com.sun.net.httpserver.HttpServer httpServer;
+
+    public static void main(String[] args) throws IOException {
+        httpServer = ServerHost.start(properties.getProperty(WS_PUBLISH_WSDL));
         Activation.ensureActivated();
         new Main();
     }
@@ -178,7 +181,7 @@ public class Main {
         wsdlURL += moduleName;
         jsPath += moduleName + ".js";*/
 
-        Endpoint.publish(wsdlURL, module);
+        ServerHost.publish(httpServer, wsdlURL, module);
 
         /*URL u = new URL(wsdlURL + "?xsd=1");
         InputStream xsd = u.openStream();
