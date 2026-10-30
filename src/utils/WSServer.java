@@ -240,6 +240,30 @@ public class WSServer {
         log("deleteBook requested to " + title + " " + successful);
     }
 
+    // Replaces the whole book list in one power-cut-safe write (titles separated by newlines).
+    // Saving a reordered list book by book could leave a half-empty list after a power cut.
+    @WebMethod
+    public void setBookList(
+            @WebParam(name = "books") String books
+    ) {
+        StringBuilder content = new StringBuilder();
+        int count = 0;
+        if (books != null) {
+            for (String line : books.split("\r?\n")) {
+                if (line.trim().length() > 0) {
+                    content.append(line.trim()).append("\n");
+                    count++;
+                }
+            }
+        }
+        if (count == 0) {
+            log("setBookList ignored: empty list");
+            return;
+        }
+        boolean successful = writeBooks(content.toString());
+        log("setBookList requested with " + count + " books " + successful);
+    }
+
     private static java.util.List<String> readBookLines() {
         java.util.List<String> lines = new ArrayList<String>();
         try {
