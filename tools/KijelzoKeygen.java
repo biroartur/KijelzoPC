@@ -9,7 +9,7 @@ import java.util.Base64;
 /**
  * Usage:
  *   java tools/KijelzoKeygen.java --init           create the signing keypair (once)
- *   java tools/KijelzoKeygen.java <DEVICE-ID>      print the activation key for a Pi
+ *   java tools/KijelzoKeygen.java <DEVICE-ID>      print the activation key for a device (Pi CPU serial or Windows MachineGuid)
  * The private key lives in ~/kijelzo/kijelzo-license/private.key and must never be committed.
  */
 public class KijelzoKeygen {

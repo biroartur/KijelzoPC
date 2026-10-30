@@ -13,8 +13,11 @@ import java.util.Collections;
 
 public final class Activation {
 
-    private static final String PUBLIC_KEY =
-            "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEHhi2AZajfHLk5TGk9FM3oi5naQn1WBGV8wV4vidOQzPnAK34VIT0QY75+g3xpusa5gVbG7M+wK2DymTKuOuW9Q==";
+    // X.509 EC P-256 public key, hex so it decodes on Java 7 (no java.util.Base64)
+    private static final String PUBLIC_KEY_HEX =
+            "3059301306072a8648ce3d020106082a8648ce3d030107034200041e18b60196a37c72e4e531a4"
+            + "f45337a22e676909f5581195f30578be274e4333e700adf85484f4418ef9fa0df1a6eb1ae6055b"
+            + "1bb33ec0ad83ca64cab8eb96f5";
 
     public static final String MESSAGE_PREFIX = "KIJELZO-PI:";
     private static final String KEY_FILE = "activation.key";
@@ -66,7 +69,7 @@ public final class Activation {
             }
             byte[] der = rawToDer(raw);
             PublicKey pub = KeyFactory.getInstance("EC").generatePublic(
-                    new X509EncodedKeySpec(java.util.Base64.getDecoder().decode(PUBLIC_KEY)));
+                    new X509EncodedKeySpec(hexDecode(PUBLIC_KEY_HEX)));
             Signature sig = Signature.getInstance("SHA256withECDSA");
             sig.initVerify(pub);
             sig.update((MESSAGE_PREFIX + deviceId).getBytes(UTF8));
@@ -77,6 +80,12 @@ public final class Activation {
     }
 
     public static String deviceId() {
+        if (System.getProperty("os.name", "").startsWith("Windows")) {
+            String guid = readWindowsMachineGuid();
+            if (guid != null) {
+                return guid;
+            }
+        }
         String serial = readCpuSerial();
         if (serial != null) {
             return serial;
@@ -99,6 +108,43 @@ public final class Activation {
         } catch (Exception ignored) {
         }
         return "UNKNOWN";
+    }
+
+    private static String readWindowsMachineGuid() {
+        // /reg:64 so a 32-bit JVM on 64-bit Windows isn't redirected to the WOW64 view, which lacks MachineGuid
+        String[][] commands = {
+                {"reg", "query", "HKLM\\SOFTWARE\\Microsoft\\Cryptography", "/v", "MachineGuid", "/reg:64"},
+                {"reg", "query", "HKLM\\SOFTWARE\\Microsoft\\Cryptography", "/v", "MachineGuid"}
+        };
+        for (String[] command : commands) {
+            try {
+                Process p = new ProcessBuilder(command).redirectErrorStream(true).start();
+                BufferedReader in = new BufferedReader(new InputStreamReader(p.getInputStream()));
+                try {
+                    String line;
+                    while ((line = in.readLine()) != null) {
+                        line = line.trim();
+                        if (line.startsWith("MachineGuid")) {
+                            String[] parts = line.split("\\s+");
+                            return parts[parts.length - 1].toUpperCase();
+                        }
+                    }
+                } finally {
+                    in.close();
+                    p.destroy();
+                }
+            } catch (IOException ignored) {
+            }
+        }
+        return null;
+    }
+
+    private static byte[] hexDecode(String hex) {
+        byte[] out = new byte[hex.length() / 2];
+        for (int i = 0; i < out.length; i++) {
+            out[i] = (byte) Integer.parseInt(hex.substring(2 * i, 2 * i + 2), 16);
+        }
+        return out;
     }
 
     private static String readCpuSerial() {
