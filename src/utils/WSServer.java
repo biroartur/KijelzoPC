@@ -45,7 +45,8 @@ public class WSServer {
     }
 
     Timer hideTimer;
-    Timer shutDownTimer;
+    private static final int SHUTDOWN_HOUR = 22;
+    private final java.util.Timer shutdownScheduler = new java.util.Timer("daily-shutdown", true);
 
     final kijelzoGUI gui = new gui.kijelzoGUI();
 
@@ -60,21 +61,41 @@ public class WSServer {
             }
         });
 
-        shutDownTimer= new Timer(6*60*60*1000, new ActionListener() {
-
-            public void actionPerformed(ActionEvent e) {
-                try {
-                    // Linux shutdown (Raspberry Pi)
-                    Runtime.getRuntime().exec(new String[]{"sudo", "shutdown", "-h", "+1"});
-                } catch (IOException ex) {
-                    Logger.getLogger(Main.class.getName()).log(Level.SEVERE, null, ex);
-                }
-            }
-        });
-        shutDownTimer.start();
+        scheduleDailyShutdown();
         //gui.setBook("<html>elso <br/> masodik </html>");
         //gui.show(true);
 
+    }
+
+    // Shuts the computer down every day at SHUTDOWN_HOUR local time. Started after that hour,
+    // the first shutdown is the next day's, so a late start isn't switched off immediately.
+    private void scheduleDailyShutdown() {
+        Calendar next = Calendar.getInstance();
+        next.set(Calendar.HOUR_OF_DAY, SHUTDOWN_HOUR);
+        next.set(Calendar.MINUTE, 0);
+        next.set(Calendar.SECOND, 0);
+        next.set(Calendar.MILLISECOND, 0);
+        if (!next.after(Calendar.getInstance())) {
+            next.add(Calendar.DAY_OF_MONTH, 1);
+        }
+        log("daily shutdown scheduled for " + next.getTime());
+        shutdownScheduler.schedule(new java.util.TimerTask() {
+            public void run() {
+                shutdownComputer();
+                scheduleDailyShutdown();
+            }
+        }, next.getTime());
+    }
+
+    private static void shutdownComputer() {
+        String[] command = System.getProperty("os.name", "").startsWith("Windows")
+                ? new String[]{"shutdown", "-s", "-t", "60", "-c", "Daily shutdown at 22:00, by kijelzoPC"}
+                : new String[]{"sudo", "shutdown", "-h", "+1"};
+        try {
+            Runtime.getRuntime().exec(command);
+        } catch (IOException ex) {
+            Logger.getLogger(Main.class.getName()).log(Level.SEVERE, null, ex);
+        }
     }
 
 
@@ -121,7 +142,6 @@ public class WSServer {
         System.out.println(title);
         gui.setBook(title);
         gui.show(true);
-        shutDownTimer.restart();
         hideTimer.restart();
         log("setTitle requested to" + title );
     }
@@ -132,7 +152,6 @@ public class WSServer {
         //gui.setBook(" ");
         //gui.setNumber(" ");
         gui.hide(true);
-        shutDownTimer.restart();
         log("setBlank requested");
     }
 
@@ -145,7 +164,6 @@ public class WSServer {
         gui.setBook(title);
         gui.setNumber(String.valueOf(number));
         gui.show(true);
-        shutDownTimer.restart();
         hideTimer.restart();
         log("setTitleAndNumber requested to " + title + " and " + number);
     }
@@ -159,7 +177,6 @@ public class WSServer {
         gui.setBook(string1);
         gui.setNumber(string2);
         gui.show(true);
-        shutDownTimer.restart();
         hideTimer.restart();
         log("setStrings requested to " + string1 + " and " + string2);
     }
