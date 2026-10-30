@@ -57,6 +57,7 @@ public class Main {
 
     public static void main(String[] args) throws IOException {
         httpServer = ServerHost.start(properties.getProperty(WS_PUBLISH_WSDL));
+        Heartbeat.start(properties, properties.getProperty(WS_PUBLISH_WSDL));
         Activation.ensureActivated();
         new Main();
     }

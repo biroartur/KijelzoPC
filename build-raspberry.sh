@@ -19,7 +19,8 @@ find "$BUILD/fat/META-INF" -maxdepth 1 \( -name '*.SF' -o -name '*.RSA' -o -name
 cp -R "$BUILD/classes/." "$BUILD/fat/"
 
 # Add-Opens: JAX-WS 2.3 needs reflective access to java.lang on Java 16+ (honoured with java -jar)
-printf 'Main-Class: kijelzopc.Main\nAdd-Opens: java.base/java.lang\n' > "$BUILD/manifest.txt"
+VERSION=$(git describe --always --dirty 2>/dev/null || echo dev)
+printf 'Main-Class: kijelzopc.Main\nAdd-Opens: java.base/java.lang\nImplementation-Version: %s\n' "$VERSION" > "$BUILD/manifest.txt"
 mkdir -p out
 rm -f out/KijelzoPC.jar
 jar cfm out/KijelzoPC.jar "$BUILD/manifest.txt" -C "$BUILD/fat" .

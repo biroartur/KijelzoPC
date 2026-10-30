@@ -25,6 +25,7 @@ public final class Activation {
     private static final Charset UTF8 = Charset.forName("UTF-8");
 
     private static volatile boolean activated;
+    private static volatile String activeKey;
     private static String cachedDeviceId;
     private static final java.util.concurrent.CountDownLatch activationDone =
             new java.util.concurrent.CountDownLatch(1);
@@ -35,6 +36,11 @@ public final class Activation {
 
     public static boolean isActivated() {
         return activated;
+    }
+
+    /** The valid key this device was activated with, or null while not activated. */
+    public static String activeKey() {
+        return activeKey;
     }
 
     /** Blocks until a valid key is entered in the on-screen dialog or submitted over HTTP. */
@@ -64,6 +70,7 @@ public final class Activation {
             return false;
         }
         writeKeyFile(key.trim());
+        activeKey = key.trim();
         activated = true;
         activationDone.countDown();
         SwingUtilities.invokeLater(new Runnable() {

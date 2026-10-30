@@ -45,6 +45,8 @@ public class WSServer {
     }
 
     Timer hideTimer;
+    // When text was last put on screen (0 = never); read by the admin heartbeat. Static fields aren't web methods.
+    public static volatile long lastCommandAt;
     public static final String SHUTDOWN_TIME = "shutdown.time";
     private static final String DEFAULT_SHUTDOWN_TIME = "22:00";
     private final java.util.Timer shutdownScheduler = new java.util.Timer("daily-shutdown", true);
@@ -168,6 +170,7 @@ public class WSServer {
         gui.setBook(title);
         gui.show(true);
         hideTimer.restart();
+        lastCommandAt = System.currentTimeMillis();
         log("setTitle requested to" + title );
     }
 
@@ -190,6 +193,7 @@ public class WSServer {
         gui.setNumber(String.valueOf(number));
         gui.show(true);
         hideTimer.restart();
+        lastCommandAt = System.currentTimeMillis();
         log("setTitleAndNumber requested to " + title + " and " + number);
     }
 
@@ -203,6 +207,7 @@ public class WSServer {
         gui.setNumber(string2);
         gui.show(true);
         hideTimer.restart();
+        lastCommandAt = System.currentTimeMillis();
         log("setStrings requested to " + string1 + " and " + string2);
     }
 
