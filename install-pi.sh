@@ -69,8 +69,9 @@ if sudo -n true 2>/dev/null; then
     sudo -n mkdir -p /etc/systemd/journald.conf.d /etc/rpi/swap.conf.d
     printf '[Journal]\nStorage=volatile\nRuntimeMaxUse=30M\n' | sudo -n tee /etc/systemd/journald.conf.d/kijelzo.conf >/dev/null
     printf '[Main]\nMechanism=zram\n' | sudo -n tee /etc/rpi/swap.conf.d/kijelzo.conf >/dev/null
+    # packagekit (desktop "updates available" checker) rewrites ~90 MB of package data on every boot
     sudo -n systemctl mask rpi-zram-writeback.timer apt-daily.timer apt-daily-upgrade.timer \
-        man-db.timer dpkg-db-backup.timer >/dev/null 2>&1 || true
+        man-db.timer dpkg-db-backup.timer packagekit.service >/dev/null 2>&1 || true
     sudo -n systemctl restart systemd-journald || true
 fi
 
