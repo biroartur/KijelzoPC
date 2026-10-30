@@ -14,7 +14,8 @@ for j in lib/bluecove-*.jar; do
     (cd "$BUILD/fat" && unzip -qo "$OLDPWD/$j" -x 'META-INF/MANIFEST.MF')
 done
 
-printf 'Main-Class: kijelzopc.Main\n' > "$BUILD/manifest.txt"
+VERSION=$(git describe --always --dirty 2>/dev/null || echo dev)
+printf 'Main-Class: kijelzopc.Main\nImplementation-Version: %s\n' "$VERSION" > "$BUILD/manifest.txt"
 mkdir -p out
 rm -f out/KijelzoPC.jar
 jar cfm out/KijelzoPC.jar "$BUILD/manifest.txt" -C "$BUILD/fat" .
