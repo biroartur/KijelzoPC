@@ -18,7 +18,6 @@ import javax.bluetooth.UUID;
 import javax.microedition.io.Connector;
 import javax.microedition.io.StreamConnection;
 import javax.microedition.io.StreamConnectionNotifier;
-import sun.java2d.pipe.BufferedBufImgOps;
 
 /**
  * A class that demonstrates Bluetooth communication between server mode PC and
