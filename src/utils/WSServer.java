@@ -230,73 +230,55 @@ public class WSServer {
             @WebParam(name = "title") String title
     ) {
 
-        File inputFile = new File(FILENAME);
-        File tempFile = new File(FILENAME + "_tmp");
-
-        BufferedReader reader = null;
-        try {
-            reader = new BufferedReader(new FileReader(inputFile));
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
+        StringBuilder kept = new StringBuilder();
+        for (String line : readBookLines()) {
+            String trimmedLine = line.trim();
+            if (trimmedLine.equals(title) || trimmedLine.length() == 0) continue;
+            kept.append(line).append("\n");
         }
-        BufferedWriter writer = null;
-        try {
-            writer = new BufferedWriter(new FileWriter(tempFile));
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        boolean successful = writeBooks(kept.toString());
+        log("deleteBook requested to " + title + " " + successful);
+    }
 
-        String lineToRemove = title;
-        String currentLine;
-
+    private static java.util.List<String> readBookLines() {
+        java.util.List<String> lines = new ArrayList<String>();
         try {
-            while((currentLine = reader.readLine()) != null) {
-                // trim newline when comparing with lineToRemove
-                String trimmedLine = currentLine.trim();
-                if(trimmedLine.equals(lineToRemove)) continue;
-                if(trimmedLine.length() == 0) continue;
-                writer.write(currentLine + "\n");
+            BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(FILENAME), "UTF-8"));
+            try {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    lines.add(line);
+                }
+            } finally {
+                reader.close();
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
+        return lines;
+    }
 
+    private static boolean writeBooks(String content) {
         try {
-            writer.close();
+            SafeFile.write(new File(FILENAME), content.getBytes("UTF-8"));
+            return true;
         } catch (IOException e) {
             e.printStackTrace();
+            return false;
         }
-        try {
-            reader.close();
-        } catch (IOException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
-        }
-        if(!inputFile.delete())
-            System.out.println("Could not delete file!");
-
-        boolean successful = tempFile.renameTo(inputFile);
-
-        log("deleteBook requested to " + title + " " + successful);
     }
 
     @WebMethod
     public void addBook(
             @WebParam(name = "title") String title
     ) {
-        File logFile = new File(FILENAME);
-
-        BufferedWriter writer = null;
-
-        try {
-            writer = new BufferedWriter(new FileWriter(logFile, true));
-            writer.append("\n" + title);
-            //writer.write(dt + " @ " +message);
-            writer.close();
-        } catch (IOException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+        StringBuilder content = new StringBuilder();
+        for (String line : readBookLines()) {
+            if (line.trim().length() > 0) content.append(line).append("\n");
         }
-
-        log("addBook requested to " + title);
+        content.append(title).append("\n");
+        boolean successful = writeBooks(content.toString());
+        log("addBook requested to " + title + " " + successful);
     }
 
     public void log(String message)
@@ -304,20 +286,42 @@ public class WSServer {
         String dt =  Calendar.getInstance().getTime().toString();
         System.out.println(dt + " @ " +message);
         if (Integer.parseInt(properties.getProperty(LOG)) == 1) {
-            File logFile = new File("log.txt");
-
-            BufferedWriter writer = null;
-
-            try {
-                writer = new BufferedWriter(new FileWriter(logFile, true));
-                writer.append(dt + " @ " +message + "\n");
-                //writer.write(dt + " @ " +message);
-                writer.close();
-            } catch (IOException e) {
-                e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
-            }
+            writeLogLine(dt + " @ " + message);
         }
 
+    }
+
+    // One log file per day in logs/; files older than LOG_KEEP_DAYS are deleted so the logs can't grow forever
+    private static final File LOG_DIR = new File("logs");
+    private static final int LOG_KEEP_DAYS = 90;
+    private static String lastPruneDay = "";
+
+    private static synchronized void writeLogLine(String line) {
+        String day = new java.text.SimpleDateFormat("yyyy-MM-dd").format(new java.util.Date());
+        LOG_DIR.mkdirs();
+        try {
+            Writer writer = new OutputStreamWriter(
+                    new FileOutputStream(new File(LOG_DIR, "kijelzopc-" + day + ".log"), true), "UTF-8");
+            try {
+                writer.write(line + "\n");
+            } finally {
+                writer.close();
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        if (!day.equals(lastPruneDay)) {
+            lastPruneDay = day;
+            long cutoff = System.currentTimeMillis() - LOG_KEEP_DAYS * 86400000L;
+            File[] files = LOG_DIR.listFiles();
+            if (files != null) {
+                for (File f : files) {
+                    if (f.getName().matches("kijelzopc-\\d{4}-\\d{2}-\\d{2}\\.log") && f.lastModified() < cutoff) {
+                        f.delete();
+                    }
+                }
+            }
+        }
     }
 
     /*private void log(Throwable ex)

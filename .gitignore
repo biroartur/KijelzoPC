@@ -21,3 +21,5 @@ Thumbs.db
 # Device-local
 activation.key
 kijelzopc.out
+logs/
+*.tmp

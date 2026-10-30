@@ -31,7 +31,7 @@ cat > "$TARGET_HOME/.config/autostart/kijelzopc.desktop" <<EOF
 [Desktop Entry]
 Type=Application
 Name=KijelzoPC
-Exec=bash -c 'sleep 5 && $APP/start.sh >> $APP/kijelzopc.out 2>&1'
+Exec=bash -c 'sleep 5 && $APP/start.sh >> /tmp/kijelzopc.out 2>&1'
 Hidden=false
 NoDisplay=false
 X-GNOME-Autostart-enabled=true
@@ -52,6 +52,9 @@ if [ ! -f "$PCMANFM/desktop-items-0.conf" ] && [ -f /etc/xdg/pcmanfm/default/des
     done
 fi
 
+# Console output goes to RAM (/tmp); the app's own log is in logs/ (one file per day, kept 90 days)
+rm -f "$APP/kijelzopc.out"
+
 chown -R "$TARGET_USER:$TARGET_USER" "$APP" "$TARGET_HOME/.config/autostart" "$TARGET_HOME/.config/pcmanfm" 2>/dev/null || true
 
 # The display must never blank or sleep (needs passwordless sudo, as the pi user has)
@@ -60,6 +63,15 @@ if sudo -n true 2>/dev/null; then
     # Daily 22:00 shutdown follows local time
     sudo -n timedatectl set-timezone Europe/Bucharest || true
     sudo -n systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target >/dev/null 2>&1 || true
+
+    # Protect the SD card: system log in RAM only, swap only in compressed RAM (no swap file,
+    # no daily writeback to the card), no background package/manual database jobs.
+    sudo -n mkdir -p /etc/systemd/journald.conf.d /etc/rpi/swap.conf.d
+    printf '[Journal]\nStorage=volatile\nRuntimeMaxUse=30M\n' | sudo -n tee /etc/systemd/journald.conf.d/kijelzo.conf >/dev/null
+    printf '[Main]\nMechanism=zram\n' | sudo -n tee /etc/rpi/swap.conf.d/kijelzo.conf >/dev/null
+    sudo -n systemctl mask rpi-zram-writeback.timer apt-daily.timer apt-daily-upgrade.timer \
+        man-db.timer dpkg-db-backup.timer >/dev/null 2>&1 || true
+    sudo -n systemctl restart systemd-journald || true
 fi
 
-echo "KijelzoPC installed to $APP (autostarts at desktop login; output in $APP/kijelzopc.out)"
+echo "KijelzoPC installed to $APP (autostarts at desktop login; output in /tmp/kijelzopc.out)"

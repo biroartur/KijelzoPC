@@ -315,8 +315,10 @@ public class kijelzoGUI {
 
     public void setClock(String value) {
         properties.setProperty(SHOWTIME, value);
-        try (FileOutputStream fos = new FileOutputStream(WS_PROPERTY_FILE)) {
-            properties.store(fos, null);
+        try {
+            java.io.ByteArrayOutputStream buffer = new java.io.ByteArrayOutputStream();
+            properties.store(buffer, null);
+            utils.SafeFile.write(new java.io.File(WS_PROPERTY_FILE), buffer.toByteArray());
         } catch (IOException e) {
             e.printStackTrace();
         }
