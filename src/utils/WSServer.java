@@ -45,7 +45,8 @@ public class WSServer {
     }
 
     Timer hideTimer;
-    private static final int SHUTDOWN_HOUR = 22;
+    public static final String SHUTDOWN_TIME = "shutdown.time";
+    private static final String DEFAULT_SHUTDOWN_TIME = "22:00";
     private final java.util.Timer shutdownScheduler = new java.util.Timer("daily-shutdown", true);
 
     final kijelzoGUI gui = new gui.kijelzoGUI();
@@ -67,12 +68,36 @@ public class WSServer {
 
     }
 
-    // Shuts the computer down every day at SHUTDOWN_HOUR local time. Started after that hour,
+    // Returns {hour, minute} from shutdown.time ("HH:mm"), null for "off"; missing or invalid means 22:00.
+    private int[] shutdownTime() {
+        String value = properties.getProperty(SHUTDOWN_TIME, DEFAULT_SHUTDOWN_TIME).trim();
+        if (value.equalsIgnoreCase("off")) {
+            return null;
+        }
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("(\\d{1,2}):(\\d{2})").matcher(value);
+        if (m.matches()) {
+            int hour = Integer.parseInt(m.group(1));
+            int minute = Integer.parseInt(m.group(2));
+            if (hour < 24 && minute < 60) {
+                return new int[]{hour, minute};
+            }
+        }
+        log("invalid " + SHUTDOWN_TIME + "=\"" + value + "\" in " + WS_PROPERTY_FILE
+                + " (use HH:mm or off), using " + DEFAULT_SHUTDOWN_TIME);
+        return new int[]{22, 0};
+    }
+
+    // Shuts the computer down every day at shutdown.time local time. Started after that time,
     // the first shutdown is the next day's, so a late start isn't switched off immediately.
     private void scheduleDailyShutdown() {
+        int[] time = shutdownTime();
+        if (time == null) {
+            log("daily shutdown disabled (" + SHUTDOWN_TIME + "=off)");
+            return;
+        }
         Calendar next = Calendar.getInstance();
-        next.set(Calendar.HOUR_OF_DAY, SHUTDOWN_HOUR);
-        next.set(Calendar.MINUTE, 0);
+        next.set(Calendar.HOUR_OF_DAY, time[0]);
+        next.set(Calendar.MINUTE, time[1]);
         next.set(Calendar.SECOND, 0);
         next.set(Calendar.MILLISECOND, 0);
         if (!next.after(Calendar.getInstance())) {
@@ -89,7 +114,7 @@ public class WSServer {
 
     private static void shutdownComputer() {
         String[] command = System.getProperty("os.name", "").startsWith("Windows")
-                ? new String[]{"shutdown", "-s", "-t", "60", "-c", "Daily shutdown at 22:00, by kijelzoPC"}
+                ? new String[]{"shutdown", "-s", "-t", "60", "-c", "Daily shutdown, by kijelzoPC"}
                 : new String[]{"sudo", "shutdown", "-h", "+1"};
         try {
             Runtime.getRuntime().exec(command);

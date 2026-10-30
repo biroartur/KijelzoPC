@@ -1,7 +1,7 @@
 #!/bin/bash
 # Installs/updates KijelzoPC into ~/kijelzopc and sets up desktop autostart.
 # Run from a clone of the raspberry branch:  bash install-pi.sh
-# Keeps an existing activation.key and konyvek.txt (book list).
+# Keeps an existing activation.key, konyvek.txt (book list) and server.properties.
 set -e
 
 SRC="$(cd "$(dirname "$0")" && pwd)"
@@ -19,7 +19,9 @@ mkdir -p "$APP/out" "$TARGET_HOME/.config/autostart"
 cp "$SRC/out/KijelzoPC.jar" "$APP/out/"
 cp "$SRC/start.sh" "$APP/"
 chmod +x "$APP/start.sh"
-cp "$SRC/server.properties" "$APP/"
+# Keep local settings (e.g. shutdown.time) on update; add the setting to older files
+[ -f "$APP/server.properties" ] || cp "$SRC/server.properties" "$APP/"
+grep -q '^shutdown.time' "$APP/server.properties" || printf '\nshutdown.time = 22:00\n' >> "$APP/server.properties"
 [ -f "$APP/konyvek.txt" ] || cp "$SRC/konyvek.txt" "$APP/"
 
 sed -i "s|publish.wsdl.address=.*|publish.wsdl.address=http://$STATIC_IP:7777/wsdl/|" "$APP/server.properties"
