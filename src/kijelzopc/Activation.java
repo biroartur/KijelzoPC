@@ -269,12 +269,7 @@ public final class Activation {
 
     private static void writeKeyFile(String key) {
         try {
-            Writer out = new OutputStreamWriter(new FileOutputStream(KEY_FILE), UTF8);
-            try {
-                out.write(key + "\n");
-            } finally {
-                out.close();
-            }
+            utils.SafeFile.write(new File(KEY_FILE), (key + "\n").getBytes(UTF8));
         } catch (IOException e) {
             e.printStackTrace();
         }
