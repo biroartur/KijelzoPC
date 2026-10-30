@@ -16,3 +16,6 @@ konyvek.txt
 # OS
 .DS_Store
 Thumbs.db
+
+# Device-local
+activation.key
