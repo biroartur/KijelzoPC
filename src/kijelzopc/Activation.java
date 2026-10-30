@@ -26,6 +26,9 @@ public final class Activation {
 
     private static volatile boolean activated;
     private static String cachedDeviceId;
+    private static final java.util.concurrent.CountDownLatch activationDone =
+            new java.util.concurrent.CountDownLatch(1);
+    private static JDialog dialog;
 
     private Activation() {
     }
@@ -34,40 +37,95 @@ public final class Activation {
         return activated;
     }
 
+    /** Blocks until a valid key is entered in the on-screen dialog or submitted over HTTP. */
     public static void ensureActivated() {
-        String deviceId = deviceId();
         String stored = readKeyFile();
-        if (stored != null && isValid(deviceId, stored)) {
-            activated = true;
+        if (stored != null && submitKey(stored)) {
             return;
         }
+        SwingUtilities.invokeLater(new Runnable() {
+            public void run() {
+                showDialog();
+            }
+        });
+        try {
+            activationDone.await();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
 
-        JTextField idField = new JTextField(deviceId);
+    /** Accepts the key if it is valid for this device; safe to call from any thread. */
+    public static synchronized boolean submitKey(String key) {
+        if (activated) {
+            return true;
+        }
+        if (key == null || !isValid(deviceId(), key)) {
+            return false;
+        }
+        writeKeyFile(key.trim());
+        activated = true;
+        activationDone.countDown();
+        SwingUtilities.invokeLater(new Runnable() {
+            public void run() {
+                if (dialog != null) {
+                    dialog.dispose();
+                }
+            }
+        });
+        return true;
+    }
+
+    private static void showDialog() {
+        if (activated) {
+            return;
+        }
+        final JTextField idField = new JTextField(deviceId());
         idField.setEditable(false);
-        JTextField keyField = new JTextField(50);
+        final JTextField keyField = new JTextField(50);
+        JButton ok = new JButton("Activate");
+        JButton cancel = new JButton("Quit");
 
-        JPanel panel = new JPanel(new GridLayout(0, 1, 4, 4));
-        panel.add(new JLabel("KijelzoPC is not activated."));
-        panel.add(new JLabel("Device ID (send this to get a key):"));
-        panel.add(idField);
-        panel.add(new JLabel("Activation key:"));
-        panel.add(keyField);
+        JPanel fields = new JPanel(new GridLayout(0, 1, 4, 4));
+        fields.add(new JLabel("KijelzoPC is not activated."));
+        fields.add(new JLabel("Device ID (send this to get a key):"));
+        fields.add(idField);
+        fields.add(new JLabel("Activation key (or enter it on the admin page):"));
+        fields.add(keyField);
+        JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        buttons.add(cancel);
+        buttons.add(ok);
+        JPanel content = new JPanel(new BorderLayout(8, 8));
+        content.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
+        content.add(fields, BorderLayout.CENTER);
+        content.add(buttons, BorderLayout.SOUTH);
 
-        while (true) {
-            int choice = JOptionPane.showConfirmDialog(null, panel, "KijelzoPC activation",
-                    JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
-            if (choice != JOptionPane.OK_OPTION) {
+        dialog = new JDialog((Frame) null, "KijelzoPC activation", false);
+        dialog.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
+        dialog.addWindowListener(new java.awt.event.WindowAdapter() {
+            public void windowClosing(java.awt.event.WindowEvent e) {
                 System.exit(0);
             }
-            String key = keyField.getText();
-            if (isValid(deviceId, key)) {
-                writeKeyFile(key.trim());
-                activated = true;
-                return;
+        });
+        ok.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                if (!submitKey(keyField.getText())) {
+                    JOptionPane.showMessageDialog(dialog, "Invalid activation key for this device.",
+                            "KijelzoPC activation", JOptionPane.ERROR_MESSAGE);
+                }
             }
-            JOptionPane.showMessageDialog(null, "Invalid activation key for this device.",
-                    "KijelzoPC activation", JOptionPane.ERROR_MESSAGE);
-        }
+        });
+        cancel.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                System.exit(0);
+            }
+        });
+        dialog.getRootPane().setDefaultButton(ok);
+        dialog.setContentPane(content);
+        dialog.pack();
+        dialog.setLocationRelativeTo(null);
+        dialog.setAlwaysOnTop(true);
+        dialog.setVisible(true);
     }
 
     public static boolean isValid(String deviceId, String key) {
