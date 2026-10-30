@@ -24,13 +24,21 @@ public final class Activation {
     private static final String BASE32 = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
     private static final Charset UTF8 = Charset.forName("UTF-8");
 
+    private static volatile boolean activated;
+    private static String cachedDeviceId;
+
     private Activation() {
+    }
+
+    public static boolean isActivated() {
+        return activated;
     }
 
     public static void ensureActivated() {
         String deviceId = deviceId();
         String stored = readKeyFile();
         if (stored != null && isValid(deviceId, stored)) {
+            activated = true;
             return;
         }
 
@@ -54,6 +62,7 @@ public final class Activation {
             String key = keyField.getText();
             if (isValid(deviceId, key)) {
                 writeKeyFile(key.trim());
+                activated = true;
                 return;
             }
             JOptionPane.showMessageDialog(null, "Invalid activation key for this device.",
@@ -79,7 +88,14 @@ public final class Activation {
         }
     }
 
-    public static String deviceId() {
+    public static synchronized String deviceId() {
+        if (cachedDeviceId == null) {
+            cachedDeviceId = readDeviceId();
+        }
+        return cachedDeviceId;
+    }
+
+    private static String readDeviceId() {
         if (System.getProperty("os.name", "").startsWith("Windows")) {
             String guid = readWindowsMachineGuid();
             if (guid != null) {
