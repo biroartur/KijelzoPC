@@ -113,9 +113,12 @@ public class kijelzoGUI {
         panel = new FadingPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
         panel.setBackground(Color.BLACK);
+        // Glue above and below centres the text vertically instead of starting at the top edge
+        panel.add(Box.createVerticalGlue());
         panel.add(book);
         panel.add(number);
         panel.add(time);
+        panel.add(Box.createVerticalGlue());
 
         //panel.set
         //timepanel = new JPanel(  new FlowLayout(FlowLayout.RIGHT));
@@ -135,7 +138,9 @@ public class kijelzoGUI {
         //Font font = number.getFont();
         font = new Font("Serif", Font.PLAIN, 220);
         componentWidth = f.getWidth() - 50;
-        componentHeight = (f.getHeight() - 20) / 2;
+        // Two lines share the height, keeping a margin of ~4% of the screen above and below
+        int verticalMargin = f.getHeight() / 25;
+        componentHeight = (f.getHeight() - 2 * verticalMargin) / 2;
         oldstring = new String("");
 
         out.println("f's width: " + f.getWidth());
