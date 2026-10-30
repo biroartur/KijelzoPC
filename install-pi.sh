@@ -40,6 +40,8 @@ chown -R "$TARGET_USER:$TARGET_USER" "$APP" "$TARGET_HOME/.config/autostart"
 # The display must never blank or sleep (needs passwordless sudo, as the pi user has)
 if sudo -n true 2>/dev/null; then
     sudo -n raspi-config nonint do_blanking 1 || true
+    # Daily 22:00 shutdown follows local time
+    sudo -n timedatectl set-timezone Europe/Bucharest || true
     sudo -n systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target >/dev/null 2>&1 || true
 fi
 
