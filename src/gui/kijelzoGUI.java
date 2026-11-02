@@ -41,6 +41,10 @@ public class kijelzoGUI {
     public static final String SCREEN_ID = "content.screen";
     public static final String WS_PROPERTY_FILE = "server.properties";
     public static final String SHOWTIME = "content.time";
+    // Text colours of line 1 (book) and line 2 (number) as RRGGBB; orange is the original colour
+    public static final String COLOR1 = "content.color1";
+    public static final String COLOR2 = "content.color2";
+    private static final String DEFAULT_COLOR = "FFC800";
 
     public static Properties properties;
 
@@ -145,10 +149,10 @@ public class kijelzoGUI {
 
         out.println("f's width: " + f.getWidth());
 
-        number.setForeground(Color.ORANGE);
+        number.setForeground(color(COLOR2));
         number.setFont(font);
 
-        book.setForeground(Color.ORANGE);
+        book.setForeground(color(COLOR1));
         book.setFont(font);
 
         Font timefont = new Font("Serif", Font.PLAIN, 200);
@@ -315,6 +319,44 @@ public class kijelzoGUI {
 
     public void setClock(String value) {
         properties.setProperty(SHOWTIME, value);
+        saveProperties();
+        System.out.println("Clock value: " + properties.getProperty(SHOWTIME));
+    }
+
+    /** Current text colours as "RRGGBB,RRGGBB" (line 1, line 2). */
+    public String getColors() {
+        return colorValue(COLOR1) + "," + colorValue(COLOR2);
+    }
+
+    /** Sets and saves both text colours (RRGGBB, '#' optional); returns false if one is invalid. */
+    public boolean setColors(String color1, String color2) {
+        if (!isColor(color1) || !isColor(color2)) {
+            return false;
+        }
+        properties.setProperty(COLOR1, color1.trim().replace("#", "").toUpperCase());
+        properties.setProperty(COLOR2, color2.trim().replace("#", "").toUpperCase());
+        saveProperties();
+        SwingUtilities.invokeLater(() -> {
+            book.setForeground(color(COLOR1));
+            number.setForeground(color(COLOR2));
+        });
+        return true;
+    }
+
+    private static boolean isColor(String value) {
+        return value != null && value.trim().matches("#?[0-9A-Fa-f]{6}");
+    }
+
+    private static String colorValue(String key) {
+        String value = properties.getProperty(key, DEFAULT_COLOR);
+        return isColor(value) ? value.trim().replace("#", "").toUpperCase() : DEFAULT_COLOR;
+    }
+
+    private static Color color(String key) {
+        return new Color(Integer.parseInt(colorValue(key), 16));
+    }
+
+    private static void saveProperties() {
         try {
             java.io.ByteArrayOutputStream buffer = new java.io.ByteArrayOutputStream();
             properties.store(buffer, null);
@@ -322,7 +364,6 @@ public class kijelzoGUI {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        System.out.println("Clock value: " + properties.getProperty(SHOWTIME));
     }
 
     public class TimeThread extends Thread {

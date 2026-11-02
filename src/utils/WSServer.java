@@ -225,6 +225,23 @@ public class WSServer {
         log("setClock requested to " + value);
     }
 
+    // Text colours of line 1 and line 2 as "RRGGBB,RRGGBB". Older servers lack these methods;
+    // the Android app hides its colour settings when getColors fails.
+    @WebMethod
+    public String getColors() {
+        log("getColors requested");
+        return gui.getColors();
+    }
+
+    @WebMethod
+    public void setColors(
+            @WebParam(name = "color1") String color1,
+            @WebParam(name = "color2") String color2
+    ) {
+        boolean successful = gui.setColors(color1, color2);
+        log("setColors requested to " + color1 + " and " + color2 + " " + successful);
+    }
+
     @WebMethod
     public void deleteBook(
             @WebParam(name = "title") String title
