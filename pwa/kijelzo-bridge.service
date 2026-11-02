@@ -1,0 +1,19 @@
+# Kijelzo web bridge: serves the iPhone web app (PWA) and forwards its commands to KijelzoPC.
+# Installed by install-pi.sh as /etc/systemd/system/kijelzo-bridge.service (@USER@/@APP@ filled in).
+[Unit]
+Description=Kijelzo web bridge (PWA for https://kijelzo.szeretet.ro)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=@USER@
+WorkingDirectory=@APP@/bridge
+Environment=NODE_ENV=production
+# KijelzoPC saves the clock setting itself; the bridge must not edit server.properties
+Environment=SERVER_PROPS_PATH=off
+ExecStart=/usr/bin/node src/index.js
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

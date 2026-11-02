@@ -96,6 +96,9 @@ if sudo -n true 2>/dev/null; then
     sudo -n systemctl mask rpi-zram-writeback.timer apt-daily.timer apt-daily-upgrade.timer \
         man-db.timer dpkg-db-backup.timer packagekit.service >/dev/null 2>&1 || true
     sudo -n systemctl restart systemd-journald || true
+
+    # iPhone web app (PWA) at https://kijelzo.szeretet.ro, as on the Windows PC
+    bash "$SRC/install-pwa.sh" "$TARGET_USER" "$APP" || echo "PWA setup failed (the display works without it)"
 fi
 
 echo "KijelzoPC installed to $APP (autostarts at desktop login; output in /tmp/kijelzopc.out)"
