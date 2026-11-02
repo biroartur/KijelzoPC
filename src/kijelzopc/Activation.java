@@ -111,6 +111,7 @@ public final class Activation {
         dialog.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
         dialog.addWindowListener(new java.awt.event.WindowAdapter() {
             public void windowClosing(java.awt.event.WindowEvent e) {
+                Updater.confirm(); // quitting on purpose is not a failed update
                 System.exit(0);
             }
         });
@@ -124,6 +125,7 @@ public final class Activation {
         });
         cancel.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent e) {
+                Updater.confirm(); // quitting on purpose is not a failed update
                 System.exit(0);
             }
         });
@@ -141,12 +143,20 @@ public final class Activation {
             if (raw.length != 64) {
                 return false;
             }
-            byte[] der = rawToDer(raw);
+            return verify((MESSAGE_PREFIX + deviceId).getBytes(UTF8), rawToDer(raw));
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /** Checks a DER-encoded SHA256withECDSA signature made with the activation private key. */
+    static boolean verify(byte[] message, byte[] der) {
+        try {
             PublicKey pub = KeyFactory.getInstance("EC").generatePublic(
                     new X509EncodedKeySpec(hexDecode(PUBLIC_KEY_HEX)));
             Signature sig = Signature.getInstance("SHA256withECDSA");
             sig.initVerify(pub);
-            sig.update((MESSAGE_PREFIX + deviceId).getBytes(UTF8));
+            sig.update(message);
             return sig.verify(der);
         } catch (Exception e) {
             return false;

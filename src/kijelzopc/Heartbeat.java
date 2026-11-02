@@ -105,7 +105,11 @@ public final class Heartbeat implements Runnable {
         m.put("os", System.getProperty("os.name") + " " + System.getProperty("os.version"));
         m.put("javaVersion", System.getProperty("java.version"));
         String version = Heartbeat.class.getPackage().getImplementationVersion();
-        m.put("version", version == null ? "dev" : version);
+        if (version == null) {
+            version = "dev";
+        }
+        String release = Updater.installedVersion();
+        m.put("version", release == null ? version : release + " (" + version + ")");
         m.put("hostname", hostname());
         m.put("localIp", localIp);
         m.put("shutdownTime", shutdownTime);
