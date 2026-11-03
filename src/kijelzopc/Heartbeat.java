@@ -104,6 +104,9 @@ public final class Heartbeat implements Runnable {
         m.put("platform", windows ? "windows" : "linux");
         m.put("os", System.getProperty("os.name") + " " + System.getProperty("os.version"));
         m.put("javaVersion", System.getProperty("java.version"));
+        // Lets the dashboard tell a Raspberry Pi from a PC: processor type and hardware model
+        m.put("arch", System.getProperty("os.arch"));
+        m.put("model", windows ? null : linuxModel());
         String version = Heartbeat.class.getPackage().getImplementationVersion();
         if (version == null) {
             version = "dev";
@@ -172,6 +175,18 @@ public final class Heartbeat implements Runnable {
         } catch (Exception ignored) {
         }
         return null;
+    }
+
+    // "Raspberry Pi 5 Model B Rev 1.1" on a Pi, "<vendor> <product>" from a PC's firmware, null if unknown
+    private static String linuxModel() {
+        String pi = firstLine("/proc/device-tree/model");
+        if (pi != null && pi.length() > 0) {
+            return pi;
+        }
+        String vendor = firstLine("/sys/class/dmi/id/sys_vendor");
+        String product = firstLine("/sys/class/dmi/id/product_name");
+        String model = ((vendor == null ? "" : vendor) + " " + (product == null ? "" : product)).trim();
+        return model.length() == 0 ? null : model;
     }
 
     private static String firstLine(String path) {
