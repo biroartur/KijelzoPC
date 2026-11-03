@@ -22,7 +22,11 @@ for p in $(xfconf-query -c xfce4-desktop -l | grep '/last-image$'); do
     xfconf-query -c xfce4-desktop -p "$p" -s "$APP/kijelzo-wallpaper.jpg"
 done
 for p in $(xfconf-query -c xfce4-desktop -l | grep '/image-style$'); do
-    xfconf-query -c xfce4-desktop -p "$p" -s 5   # zoomed: fills the screen, keeps proportions
+    # scaled: the whole picture, dark bars on screens that are not 16:9 (zoomed cut off the sides on 5:4)
+    xfconf-query -c xfce4-desktop -p "$p" -s 4
+    b="${p%/image-style}"
+    xfconf-query -c xfce4-desktop -p "$b/color-style" -n -t int -s 0
+    xfconf-query -c xfce4-desktop -p "$b/rgba1" -n -t double -s 0.03 -t double -s 0.03 -t double -s 0.04 -t double -s 1
 done
 # XFCE may only have the generic monitor0/monitor1 settings while it shows the real output
 # (e.g. monitorVGA-1), so set every connected output's workspaces explicitly as well
@@ -30,7 +34,9 @@ for m in $(xrandr 2>/dev/null | awk '/ connected/ {print $1}'); do
     for ws in 0 1 2 3; do
         b="/backdrop/screen0/monitor$m/workspace$ws"
         xfconf-query -c xfce4-desktop -p "$b/last-image" -n -t string -s "$APP/kijelzo-wallpaper.jpg"
-        xfconf-query -c xfce4-desktop -p "$b/image-style" -n -t int -s 5
+        xfconf-query -c xfce4-desktop -p "$b/image-style" -n -t int -s 4
+        xfconf-query -c xfce4-desktop -p "$b/color-style" -n -t int -s 0
+        xfconf-query -c xfce4-desktop -p "$b/rgba1" -n -t double -s 0.03 -t double -s 0.03 -t double -s 0.04 -t double -s 1
     done
 done
 touch "$MARKER"
