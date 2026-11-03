@@ -23,6 +23,11 @@ if [ ! -f /root/.aws/credentials ]; then
         echo "Both values are needed." >&2
         exit 1
     fi
+    # Catches the usual paste mistakes (values swapped, a whole CSV line) before anything is saved
+    if ! [[ "$KEY_ID" =~ ^AKIA[A-Z0-9]{16}$ ]] || [ ${#SECRET} -ne 40 ]; then
+        echo "That does not look right: the key ID starts with AKIA (20 characters), the secret has 40 characters." >&2
+        exit 1
+    fi
     umask 077
     mkdir -p /root/.aws
     printf '[default]\naws_access_key_id = %s\naws_secret_access_key = %s\n' "$KEY_ID" "$SECRET" > /root/.aws/credentials
