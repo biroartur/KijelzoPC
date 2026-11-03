@@ -49,7 +49,12 @@ public class WSServer {
     public static volatile long lastCommandAt;
     public static final String SHUTDOWN_TIME = "shutdown.time";
     private static final String DEFAULT_SHUTDOWN_TIME = "22:00";
-    private final java.util.Timer shutdownScheduler = new java.util.Timer("daily-shutdown", true);
+    private final java.util.concurrent.ScheduledExecutorService shutdownScheduler =
+            java.util.concurrent.Executors.newSingleThreadScheduledExecutor(r -> {
+                Thread t = new Thread(r, "daily-shutdown");
+                t.setDaemon(true);
+                return t;
+            });
 
     final kijelzoGUI gui = new gui.kijelzoGUI();
 
@@ -89,35 +94,47 @@ public class WSServer {
         return new int[]{22, 0};
     }
 
-    // Shuts the computer down every day at shutdown.time local time. Started after that time,
-    // the first shutdown is the next day's, so a late start isn't switched off immediately.
+    // Shuts the computer down every day at shutdown.time local time. The wall clock is checked every
+    // 20 s instead of sleeping until a moment computed at startup: a Raspberry Pi without a clock battery
+    // starts with the time it was switched off and only gets the right time from the network later.
+    // It fires only when the clock passes shutdown.time while running, so a start after that time, or
+    // a big clock jump at boot, never switches the computer off.
     private void scheduleDailyShutdown() {
-        int[] time = shutdownTime();
+        final int[] time = shutdownTime();
         if (time == null) {
             log("daily shutdown disabled (" + SHUTDOWN_TIME + "=off)");
             return;
         }
-        Calendar next = Calendar.getInstance();
-        next.set(Calendar.HOUR_OF_DAY, time[0]);
-        next.set(Calendar.MINUTE, time[1]);
-        next.set(Calendar.SECOND, 0);
-        next.set(Calendar.MILLISECOND, 0);
-        if (!next.after(Calendar.getInstance())) {
-            next.add(Calendar.DAY_OF_MONTH, 1);
-        }
-        log("daily shutdown scheduled for " + next.getTime());
-        shutdownScheduler.schedule(new java.util.TimerTask() {
-            public void run() {
+        log("daily shutdown scheduled for " + String.format("%02d:%02d", time[0], time[1]) + " every day ("
+                + java.util.TimeZone.getDefault().getID() + ")");
+        final long[] lastCheck = {System.currentTimeMillis()};
+        shutdownScheduler.scheduleWithFixedDelay(() -> {
+            long now = System.currentTimeMillis();
+            if (shutdownDue(lastCheck[0], now, time[0], time[1])) {
+                log("daily shutdown time " + String.format("%02d:%02d", time[0], time[1]) + " reached, shutting down");
                 shutdownComputer();
-                scheduleDailyShutdown();
             }
-        }, next.getTime());
+            lastCheck[0] = now;
+        }, 20, 20, java.util.concurrent.TimeUnit.SECONDS);
+    }
+
+    // True when the clock passed hour:minute (local time) between two checks about 20 s apart.
+    // A gap of more than 2 minutes between the checks means the clock jumped; that never counts.
+    static boolean shutdownDue(long lastCheck, long now, int hour, int minute) {
+        Calendar target = Calendar.getInstance();
+        target.setTimeInMillis(now);
+        target.set(Calendar.HOUR_OF_DAY, hour);
+        target.set(Calendar.MINUTE, minute);
+        target.set(Calendar.SECOND, 0);
+        target.set(Calendar.MILLISECOND, 0);
+        long t = target.getTimeInMillis();
+        return lastCheck < t && t <= now && now - lastCheck < 2 * 60 * 1000L;
     }
 
     private static void shutdownComputer() {
         String[] command = System.getProperty("os.name", "").startsWith("Windows")
                 ? new String[]{"shutdown", "-s", "-t", "60", "-c", "Daily shutdown, by kijelzoPC"}
-                : new String[]{"sudo", "shutdown", "-h", "+1"};
+                : new String[]{"sudo", "-n", "shutdown", "-h", "now"};
         try {
             Runtime.getRuntime().exec(command);
         } catch (IOException ex) {
