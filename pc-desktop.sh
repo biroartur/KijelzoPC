@@ -15,6 +15,9 @@ xfconf-query -c xsettings -p /Net/ThemeName -s Adwaita-dark
 xfconf-query -c xsettings -p /Net/IconThemeName -s Adwaita 2>/dev/null
 xfconf-query -c xfce4-desktop -p /desktop-icons/style -n -t int -s 0 2>/dev/null \
     || xfconf-query -c xfce4-desktop -p /desktop-icons/style -s 0
+# Power button shuts down at once (XFCE's default asks in a dialog hidden behind the full-screen display)
+xfconf-query -c xfce4-power-manager -p /xfce4-power-manager/power-button-action -n -t int -s 4 2>/dev/null \
+    || xfconf-query -c xfce4-power-manager -p /xfce4-power-manager/power-button-action -s 4
 for p in $(xfconf-query -c xfce4-desktop -l | grep '/last-image$'); do
     xfconf-query -c xfce4-desktop -p "$p" -s "$APP/kijelzo-wallpaper.jpg"
 done
