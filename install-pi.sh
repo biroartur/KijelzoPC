@@ -39,7 +39,7 @@ NoDisplay=false
 X-GNOME-Autostart-enabled=true
 EOF
 
-cp "$SRC/wallpaper/kijelzo-wallpaper.jpg" "$APP/"
+cp "$SRC/wallpaper/kijelzo-wallpaper.jpg" "$SRC/wallpaper/kijelzo-wallpaper-5x4.jpg" "$APP/"
 
 # Kijelzo wallpaper on first install only: a desktop config of the user's own is never overwritten
 PCMANFM="$TARGET_HOME/.config/pcmanfm/default"

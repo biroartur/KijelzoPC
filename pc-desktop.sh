@@ -18,8 +18,14 @@ xfconf-query -c xfce4-desktop -p /desktop-icons/style -n -t int -s 0 2>/dev/null
 # Power button shuts down at once (XFCE's default asks in a dialog hidden behind the full-screen display)
 xfconf-query -c xfce4-power-manager -p /xfce4-power-manager/power-button-action -n -t int -s 4 2>/dev/null \
     || xfconf-query -c xfce4-power-manager -p /xfce4-power-manager/power-button-action -s 4
+# A 5:4 monitor (e.g. 1280x1024) gets its own version, so the picture fills it without dark bars
+WALLPAPER="$APP/kijelzo-wallpaper.jpg"
+SIZE=$(xrandr 2>/dev/null | awk '/\*/ {print $1; exit}')
+if [ -f "$APP/kijelzo-wallpaper-5x4.jpg" ] && [ $((${SIZE%x*} * 4)) -eq $((${SIZE#*x} * 5)) ] 2>/dev/null; then
+    WALLPAPER="$APP/kijelzo-wallpaper-5x4.jpg"
+fi
 for p in $(xfconf-query -c xfce4-desktop -l | grep '/last-image$'); do
-    xfconf-query -c xfce4-desktop -p "$p" -s "$APP/kijelzo-wallpaper.jpg"
+    xfconf-query -c xfce4-desktop -p "$p" -s "$WALLPAPER"
 done
 for p in $(xfconf-query -c xfce4-desktop -l | grep '/image-style$'); do
     # scaled: the whole picture, dark bars on screens that are not 16:9 (zoomed cut off the sides on 5:4)
@@ -33,7 +39,7 @@ done
 for m in $(xrandr 2>/dev/null | awk '/ connected/ {print $1}'); do
     for ws in 0 1 2 3; do
         b="/backdrop/screen0/monitor$m/workspace$ws"
-        xfconf-query -c xfce4-desktop -p "$b/last-image" -n -t string -s "$APP/kijelzo-wallpaper.jpg"
+        xfconf-query -c xfce4-desktop -p "$b/last-image" -n -t string -s "$WALLPAPER"
         xfconf-query -c xfce4-desktop -p "$b/image-style" -n -t int -s 4
         xfconf-query -c xfce4-desktop -p "$b/color-style" -n -t int -s 0
         xfconf-query -c xfce4-desktop -p "$b/rgba1" -n -t double -s 0.03 -t double -s 0.03 -t double -s 0.04 -t double -s 1

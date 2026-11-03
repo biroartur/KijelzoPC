@@ -1,5 +1,6 @@
-# Renders wallpaper/kijelzo-wallpaper.jpg (1920x1080). Needs Pillow and macOS fonts (Georgia, Avenir Next).
-# Usage: python3 tools/make_wallpaper.py wallpaper/kijelzo-wallpaper.jpg
+# Renders the Kijelzo wallpaper (default 1920x1080). Needs Pillow and macOS fonts (Georgia, Avenir Next).
+# Usage: python3 tools/make_wallpaper.py wallpaper/kijelzo-wallpaper.jpg [WIDTH HEIGHT]
+#   e.g. 1280 1024 for a 5:4 monitor; sizes and margins scale with the screen, positions are proportional.
 import math
 import random
 import sys
@@ -7,8 +8,9 @@ import sys
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 OUT = sys.argv[1]
-W, H = 1920, 1080
+W, H = (int(sys.argv[2]), int(sys.argv[3])) if len(sys.argv) > 3 else (1920, 1080)
 S = 2  # supersample
+K = min(W / 1920, H / 1080)  # scale of fixed sizes relative to the 1920x1080 design
 w, h = W * S, H * S
 AMBER = (255, 200, 0)
 
@@ -26,42 +28,42 @@ for y in range(h):
 # Warm amber glow, lower right
 glow = Image.new("L", (w, h), 0)
 ImageDraw.Draw(glow).ellipse([w * 0.52, h * 0.38, w * 1.08, h * 1.15], fill=60)
-glow = glow.filter(ImageFilter.GaussianBlur(260 * S / 2))
+glow = glow.filter(ImageFilter.GaussianBlur(260 * K * S / 2))
 base.paste(Image.new("RGB", (w, h), (120, 72, 0)), (0, 0), glow)
 
 layer = Image.new("RGBA", (w, h), (0, 0, 0, 0))
 draw = ImageDraw.Draw(layer)
 
 # Large faint serif hymn number, like the display shows it
-serif = ImageFont.truetype("/System/Library/Fonts/Supplemental/Georgia.ttf", 560 * S)
+serif = ImageFont.truetype("/System/Library/Fonts/Supplemental/Georgia.ttf", int(560 * K * S))
 num = "123"
 box = draw.textbbox((0, 0), num, font=serif)
-nx = w - (box[2] - box[0]) - 150 * S
+nx = w - (box[2] - box[0]) - 150 * K * S
 ny = h * 0.20 - box[1]
 draw.text((nx, ny), num, font=serif, fill=AMBER + (20,))
 
 # Music staff: five thin, gently waving lines across the lower third
 for i in range(5):
     pts = []
-    y0 = h * 0.70 + i * 22 * S
+    y0 = h * 0.70 + i * 22 * K * S
     for x in range(0, w + 8, 8):
-        y = y0 + math.sin(x / w * math.pi * 1.6 + 0.6) * 46 * S + math.sin(x / w * math.pi * 4.1) * 8 * S
+        y = y0 + math.sin(x / w * math.pi * 1.6 + 0.6) * 46 * K * S + math.sin(x / w * math.pi * 4.1) * 8 * K * S
         pts.append((x, y))
-    draw.line(pts, fill=AMBER + (30,), width=2 * S)
+    draw.line(pts, fill=AMBER + (30,), width=max(1, round(2 * K * S)))
 
 # Wordmark
-title_font = ImageFont.truetype("/System/Library/Fonts/Avenir Next.ttc", 132 * S, index=5)
-tag_font = ImageFont.truetype("/System/Library/Fonts/Avenir Next.ttc", 26 * S, index=2)
-tx, ty = 150 * S, h * 0.37
+title_font = ImageFont.truetype("/System/Library/Fonts/Avenir Next.ttc", int(132 * K * S), index=5)
+tag_font = ImageFont.truetype("/System/Library/Fonts/Avenir Next.ttc", int(26 * K * S), index=2)
+tx, ty = 150 * K * S, h * 0.37
 draw.text((tx, ty), "Kijelző", font=title_font, fill=(236, 233, 226, 235))
 tb = draw.textbbox((tx, ty), "Kijelző", font=title_font)
-ly = tb[3] + 34 * S
-draw.line([(tx + 6 * S, ly), (tx + 96 * S, ly)], fill=AMBER + (220,), width=3 * S)
+ly = tb[3] + 34 * K * S
+draw.line([(tx + 6 * K * S, ly), (tx + 96 * K * S, ly)], fill=AMBER + (220,), width=max(1, round(3 * K * S)))
 tag = "ÉNEKSZÁMOK"
-x = tx + 6 * S
+x = tx + 6 * K * S
 for ch in tag:
-    draw.text((x, ly + 26 * S), ch, font=tag_font, fill=AMBER + (190,))
-    x += draw.textlength(ch, font=tag_font) + 7 * S
+    draw.text((x, ly + 26 * K * S), ch, font=tag_font, fill=AMBER + (190,))
+    x += draw.textlength(ch, font=tag_font) + 7 * K * S
 
 img = Image.alpha_composite(base.convert("RGBA"), layer).convert("RGB")
 img = img.resize((W, H), Image.LANCZOS)
