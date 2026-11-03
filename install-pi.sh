@@ -101,7 +101,30 @@ if sudo -n true 2>/dev/null; then
     [ "$IS_PI" = 1 ] && { sudo -n raspi-config nonint do_blanking 1 || true; }
     # Daily 22:00 shutdown follows local time
     sudo -n timedatectl set-timezone Europe/Bucharest || true
-    sudo -n systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target >/dev/null 2>&1 || true
+    # Never sleep: no suspend/hibernate at all, and no idle, lid or suspend-key action
+    sudo -n systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target \
+        suspend-then-hibernate.target >/dev/null 2>&1 || true
+    sudo -n mkdir -p /etc/systemd/logind.conf.d
+    printf '[Login]\nIdleAction=ignore\nHandleSuspendKey=ignore\nHandleHibernateKey=ignore\nHandleLidSwitch=ignore\nHandleLidSwitchExternalPower=ignore\n' \
+        | sudo -n tee /etc/systemd/logind.conf.d/kijelzo.conf >/dev/null
+    if [ "$IS_PI" = 0 ]; then
+        # PC desktop: no screen locker or screensaver (the installer stick removes them too)
+        for pkg in light-locker xfce4-screensaver; do
+            dpkg -s "$pkg" >/dev/null 2>&1 && sudo -n apt-get purge -y -qq "$pkg" >/dev/null 2>&1 || true
+        done
+        # Wake-on-LAN: keep the wired network card listening for the wake-up packet after shutdown
+        # (the BIOS must allow it too). NetworkManager's setting plus this backup for drivers ignoring it.
+        for c in $(nmcli -t -f NAME,TYPE con show 2>/dev/null | sed -n 's/:802-3-ethernet$//p'); do
+            sudo -n nmcli con modify "$c" 802-3-ethernet.wake-on-lan magic >/dev/null 2>&1 || true
+        done
+        printf '%s\n' '[Unit]' 'Description=Keep Wake-on-LAN armed on wired network cards (Kijelzo)' \
+            'After=network-online.target' 'Wants=network-online.target' '' '[Service]' 'Type=oneshot' \
+            "ExecStart=/bin/sh -c 'for d in /sys/class/net/*; do [ -e \"\$d/device\" ] && [ ! -d \"\$d/wireless\" ] && /usr/sbin/ethtool -s \"\$(basename \"\$d\")\" wol g 2>/dev/null; done; true'" \
+            '' '[Install]' 'WantedBy=multi-user.target' | sudo -n tee /etc/systemd/system/kijelzo-wol.service >/dev/null
+        command -v ethtool >/dev/null || sudo -n apt-get install -y -qq ethtool >/dev/null 2>&1 || true
+        sudo -n systemctl daemon-reload
+        sudo -n systemctl enable -q kijelzo-wol.service 2>/dev/null || true
+    fi
 
     if [ "$IS_PI" = 1 ]; then
         # Protect the SD card: system log in RAM only, swap only in compressed RAM (no swap file,

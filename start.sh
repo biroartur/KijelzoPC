@@ -4,6 +4,10 @@
 
 cd "$(dirname "$0")"
 
+# Never blank the screen or start a screensaver (X11 desktops, e.g. XFCE on a PC; the Pi's Wayland
+# desktop has blanking switched off by install-pi.sh and ignores this)
+xset s off s noblank -dpms 2>/dev/null || true
+
 # Install a newer signed release first. The updater runs from a copy (in RAM) so it can replace
 # the JAR; if the new version ends right after starting, the previous one is restored and started.
 UPDATER=/tmp/kijelzopc-updater.jar
