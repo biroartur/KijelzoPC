@@ -1,5 +1,5 @@
 #!/bin/bash
-# Installs/updates KijelzoPC into ~/kijelzopc and sets up desktop autostart.
+# Installs/updates KijelzoPC into ~/kijelzopc and sets up desktop autostart, on a Raspberry Pi or a Debian PC.
 # Run from a clone of the raspberry branch:  bash install-pi.sh
 # Keeps an existing activation.key, konyvek.txt (book list) and server.properties.
 set -e
@@ -14,6 +14,8 @@ fi
 TARGET_HOME=$(getent passwd "$TARGET_USER" | cut -d: -f6)
 APP="$TARGET_HOME/kijelzopc"
 STATIC_IP="192.168.1.12"
+# Raspberry Pi (SD card, Pi desktop) or a Debian PC (disk, XFCE; prepared by the linux-pc installer stick)
+if grep -qs 'Raspberry Pi' /proc/device-tree/model; then IS_PI=1; else IS_PI=0; fi
 
 mkdir -p "$APP/out" "$TARGET_HOME/.config/autostart"
 cp "$SRC/out/KijelzoPC.jar" "$APP/out/"
@@ -74,6 +76,20 @@ if [ ! -f "$APP/.dark-theme-applied" ] && [ -d /usr/share/themes/PiXonyx ]; then
     touch "$APP/.dark-theme-applied"
 fi
 
+# PC with XFCE: same look (dark, Kijelzo wallpaper), applied once at the first login
+if [ "$IS_PI" = 0 ] && command -v xfconf-query >/dev/null; then
+    install -m 755 "$SRC/pc-desktop.sh" "$APP/pc-desktop.sh"
+    cat > "$TARGET_HOME/.config/autostart/kijelzo-desktop.desktop" <<EOF
+[Desktop Entry]
+Type=Application
+Name=Kijelzo desktop look
+Exec=$APP/pc-desktop.sh
+Hidden=false
+NoDisplay=true
+X-GNOME-Autostart-enabled=true
+EOF
+fi
+
 # Console output goes to RAM (/tmp); the app's own log is in logs/ (one file per day, kept 90 days)
 rm -f "$APP/kijelzopc.out"
 
@@ -82,20 +98,23 @@ chown -R "$TARGET_USER:$TARGET_USER" "$APP" "$TARGET_HOME/.config/autostart" "$T
 
 # The display must never blank or sleep (needs passwordless sudo, as the pi user has)
 if sudo -n true 2>/dev/null; then
-    sudo -n raspi-config nonint do_blanking 1 || true
+    [ "$IS_PI" = 1 ] && { sudo -n raspi-config nonint do_blanking 1 || true; }
     # Daily 22:00 shutdown follows local time
     sudo -n timedatectl set-timezone Europe/Bucharest || true
     sudo -n systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target >/dev/null 2>&1 || true
 
-    # Protect the SD card: system log in RAM only, swap only in compressed RAM (no swap file,
-    # no daily writeback to the card), no background package/manual database jobs.
-    sudo -n mkdir -p /etc/systemd/journald.conf.d /etc/rpi/swap.conf.d
-    printf '[Journal]\nStorage=volatile\nRuntimeMaxUse=30M\n' | sudo -n tee /etc/systemd/journald.conf.d/kijelzo.conf >/dev/null
-    printf '[Main]\nMechanism=zram\n' | sudo -n tee /etc/rpi/swap.conf.d/kijelzo.conf >/dev/null
-    # packagekit (desktop "updates available" checker) rewrites ~90 MB of package data on every boot
-    sudo -n systemctl mask rpi-zram-writeback.timer apt-daily.timer apt-daily-upgrade.timer \
-        man-db.timer dpkg-db-backup.timer packagekit.service >/dev/null 2>&1 || true
-    sudo -n systemctl restart systemd-journald || true
+    if [ "$IS_PI" = 1 ]; then
+        # Protect the SD card: system log in RAM only, swap only in compressed RAM (no swap file,
+        # no daily writeback to the card), no background package/manual database jobs.
+        # Not on a PC: it has a disk, and its automatic security updates need the apt timers.
+        sudo -n mkdir -p /etc/systemd/journald.conf.d /etc/rpi/swap.conf.d
+        printf '[Journal]\nStorage=volatile\nRuntimeMaxUse=30M\n' | sudo -n tee /etc/systemd/journald.conf.d/kijelzo.conf >/dev/null
+        printf '[Main]\nMechanism=zram\n' | sudo -n tee /etc/rpi/swap.conf.d/kijelzo.conf >/dev/null
+        # packagekit (desktop "updates available" checker) rewrites ~90 MB of package data on every boot
+        sudo -n systemctl mask rpi-zram-writeback.timer apt-daily.timer apt-daily-upgrade.timer \
+            man-db.timer dpkg-db-backup.timer packagekit.service >/dev/null 2>&1 || true
+        sudo -n systemctl restart systemd-journald || true
+    fi
 
     # iPhone web app (PWA) at https://kijelzo.szeretet.ro, as on the Windows PC
     bash "$SRC/install-pwa.sh" "$TARGET_USER" "$APP" || echo "PWA setup failed (the display works without it)"
