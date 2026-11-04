@@ -45,6 +45,11 @@ public class WSServer {
     }
 
     Timer hideTimer;
+
+    // What the display shows right now (for getCurrent); empty lines while it is cleared
+    private volatile String currentLine1 = "";
+    private volatile String currentLine2 = "";
+    private volatile boolean contentShown = false;
     // When text was last put on screen (0 = never); read by the admin heartbeat. Static fields aren't web methods.
     public static volatile long lastCommandAt;
     public static final String SHUTDOWN_TIME = "shutdown.time";
@@ -63,6 +68,7 @@ public class WSServer {
 
             public void actionPerformed(ActionEvent e) {
                 gui.hide(true);
+                contentShown = false;
                 gui.setTime("12:20");
 
                 ((Timer)e.getSource()).stop();
@@ -186,6 +192,7 @@ public class WSServer {
         System.out.println(title);
         gui.setBook(title);
         gui.show(true);
+        remember(title, "");
         restartHideTimer();
         lastCommandAt = System.currentTimeMillis();
         log("setTitle requested to" + title );
@@ -197,6 +204,7 @@ public class WSServer {
         //gui.setBook(" ");
         //gui.setNumber(" ");
         gui.hide(true);
+        contentShown = false;
         log("setBlank requested");
     }
 
@@ -209,6 +217,7 @@ public class WSServer {
         gui.setBook(title);
         gui.setNumber(String.valueOf(number));
         gui.show(true);
+        remember(title, String.valueOf(number));
         restartHideTimer();
         lastCommandAt = System.currentTimeMillis();
         log("setTitleAndNumber requested to " + title + " and " + number);
@@ -223,6 +232,7 @@ public class WSServer {
         gui.setBook(string1);
         gui.setNumber(string2);
         gui.show(true);
+        remember(string1, string2);
         restartHideTimer();
         lastCommandAt = System.currentTimeMillis();
         log("setStrings requested to " + string1 + " and " + string2);
@@ -280,6 +290,21 @@ public class WSServer {
             });
         }
         log("setHideMinutes requested to " + minutes + " " + successful);
+    }
+
+    private void remember(String line1, String line2) {
+        currentLine1 = line1 == null ? "" : line1;
+        currentLine2 = line2 == null ? "" : line2;
+        contentShown = true;
+    }
+
+    /**
+     * What the display shows right now: "line1\nline2", or "" while it is cleared (Clear Display
+     * or the hide timer). Older servers lack this method; the app then hides the line.
+     */
+    @WebMethod
+    public String getCurrent() {
+        return contentShown ? currentLine1 + "\n" + currentLine2 : "";
     }
 
     // Starts the hide countdown again with the current setting; 0 minutes keeps the text up.
