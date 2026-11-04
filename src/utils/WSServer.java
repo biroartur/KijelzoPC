@@ -186,7 +186,7 @@ public class WSServer {
         System.out.println(title);
         gui.setBook(title);
         gui.show(true);
-        hideTimer.restart();
+        restartHideTimer();
         lastCommandAt = System.currentTimeMillis();
         log("setTitle requested to" + title );
     }
@@ -209,7 +209,7 @@ public class WSServer {
         gui.setBook(title);
         gui.setNumber(String.valueOf(number));
         gui.show(true);
-        hideTimer.restart();
+        restartHideTimer();
         lastCommandAt = System.currentTimeMillis();
         log("setTitleAndNumber requested to " + title + " and " + number);
     }
@@ -223,7 +223,7 @@ public class WSServer {
         gui.setBook(string1);
         gui.setNumber(string2);
         gui.show(true);
-        hideTimer.restart();
+        restartHideTimer();
         lastCommandAt = System.currentTimeMillis();
         log("setStrings requested to " + string1 + " and " + string2);
     }
@@ -257,6 +257,40 @@ public class WSServer {
     ) {
         boolean successful = gui.setColors(color1, color2);
         log("setColors requested to " + color1 + " and " + color2 + " " + successful);
+    }
+
+    // Minutes the text stays on screen after the last change (0 = until hidden by hand, default 30).
+    // Older servers lack these methods; the Android app hides the setting when getHideMinutes fails.
+    @WebMethod
+    public int getHideMinutes() {
+        log("getHideMinutes requested");
+        return gui.getHideMinutes();
+    }
+
+    @WebMethod
+    public void setHideMinutes(
+            @WebParam(name = "minutes") int minutes
+    ) {
+        boolean successful = gui.setHideMinutes(minutes);
+        if (successful) {
+            SwingUtilities.invokeLater(() -> {
+                if (hideTimer.isRunning()) {
+                    restartHideTimer();
+                }
+            });
+        }
+        log("setHideMinutes requested to " + minutes + " " + successful);
+    }
+
+    // Starts the hide countdown again with the current setting; 0 minutes keeps the text up.
+    private void restartHideTimer() {
+        int minutes = gui.getHideMinutes();
+        if (minutes == 0) {
+            hideTimer.stop();
+            return;
+        }
+        hideTimer.setInitialDelay(minutes * 60 * 1000);
+        hideTimer.restart();
     }
 
     @WebMethod
