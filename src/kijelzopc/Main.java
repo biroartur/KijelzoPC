@@ -58,6 +58,7 @@ public class Main {
     public static void main(String[] args) throws IOException {
         httpServer = ServerHost.start(properties.getProperty(WS_PUBLISH_WSDL));
         Updater.confirmAfterStartup();
+        BridgeUpdate.startInBackground();   // Linux/Pi: brings the PWA files of this release
         Heartbeat.start(properties, properties.getProperty(WS_PUBLISH_WSDL));
         Activation.ensureActivated();
         new Main();
