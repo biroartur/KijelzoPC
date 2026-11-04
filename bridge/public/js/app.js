@@ -1,4 +1,5 @@
-if (localStorage.getItem('kj_theme') === 'light') document.documentElement.classList.add('light');
+import { applyTheme } from './theme.js';
+applyTheme();
 
 // Haptic feedback on every button/interactive tap (Android Chrome only; no-op elsewhere)
 if (navigator.vibrate) {

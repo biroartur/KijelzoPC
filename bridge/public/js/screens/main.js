@@ -10,7 +10,6 @@ export function renderMain(app) {
       <div class="header">
         <h1>Kijelző</h1>
         <div style="display:flex;align-items:center;gap:.75rem">
-          <button class="theme-toggle" id="themeToggle" title="Toggle theme"></button>
           <div class="status">
             <div class="status-dot" id="statusDot"></div>
             <span id="statusText">Checking…</span>
@@ -49,8 +48,9 @@ export function renderMain(app) {
           </div>
         </div>
 
-        <!-- Advanced panel (hidden initially) -->
+        <!-- Advanced and Settings panels (hidden initially, loaded on first use) -->
         <div id="advancedPanel" style="display:none"></div>
+        <div id="settingsPanel" style="display:none"></div>
       </div>
 
       <!-- Floating, rounded bottom menu (same look as the Android app); the page scrolls behind it -->
@@ -62,6 +62,10 @@ export function renderMain(app) {
         <button class="nav-item" id="tabAdvanced">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17v2h6v-2H3zM3 5v2h10V5H3zm10 16v-2h8v-2h-8v-2h-2v6h2zM7 9v2H3v2h4v2h2V9H7zm14 4v-2H11v2h10zm-6-4h2V7h4V5h-4V3h-2v6z"/></svg>
           <span>Advanced</span>
+        </button>
+        <button class="nav-item" id="tabSettings">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.14 12.94a7.07 7.07 0 0 0 .05-.94 7.07 7.07 0 0 0-.05-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.49.49 0 0 0-.59-.22l-2.39.96a7.03 7.03 0 0 0-1.62-.94l-.36-2.54a.48.48 0 0 0-.48-.41h-3.84a.48.48 0 0 0-.48.41l-.36 2.54a7.03 7.03 0 0 0-1.62.94l-2.39-.96a.49.49 0 0 0-.59.22L2.73 8.87a.48.48 0 0 0 .12.61l2.03 1.58a7.07 7.07 0 0 0 0 1.88l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.04.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.48-.41l.36-2.54a7.03 7.03 0 0 0 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32a.48.48 0 0 0-.12-.61l-2.03-1.58zM12 15.6A3.6 3.6 0 1 1 12 8.4a3.6 3.6 0 0 1 0 7.2z"/></svg>
+          <span>Settings</span>
         </button>
       </nav>
     </div>
@@ -78,25 +82,28 @@ export function renderMain(app) {
     <div class="toast" id="toast"></div>
   `;
 
-  // Lazy-load advanced screen
-  const advancedPanel = document.getElementById('advancedPanel');
-  document.getElementById('tabPresenter').addEventListener('click', () => {
-    document.getElementById('presenterPanel').style.display = '';
-    advancedPanel.style.display = 'none';
-    document.getElementById('tabPresenter').classList.add('active');
-    document.getElementById('tabAdvanced').classList.remove('active');
-  });
-  document.getElementById('tabAdvanced').addEventListener('click', async () => {
-    document.getElementById('presenterPanel').style.display = 'none';
-    advancedPanel.style.display = '';
-    document.getElementById('tabPresenter').classList.remove('active');
-    document.getElementById('tabAdvanced').classList.add('active');
-    if (!advancedPanel._loaded) {
-      const { renderAdvanced } = await import('./advanced.js');
-      renderAdvanced(advancedPanel, showToast);
-      advancedPanel._loaded = true;
-    }
-  });
+  // Bottom menu: Presenter / Advanced / Settings (the last two load on first use)
+  const panels = {
+    Presenter: document.getElementById('presenterPanel'),
+    Advanced: document.getElementById('advancedPanel'),
+    Settings: document.getElementById('settingsPanel'),
+  };
+  const loaders = {
+    Advanced: async (el) => (await import('./advanced.js')).renderAdvanced(el, showToast),
+    Settings: async (el) => (await import('./settings.js')).renderSettings(el, showToast),
+  };
+  for (const name of Object.keys(panels)) {
+    document.getElementById('tab' + name).addEventListener('click', async () => {
+      for (const [n, el] of Object.entries(panels)) {
+        el.style.display = n === name ? '' : 'none';
+        document.getElementById('tab' + n).classList.toggle('active', n === name);
+      }
+      const el = panels[name];
+      if (loaders[name] && !el._loaded) { el._loaded = true; await loaders[name](el); }
+      else if (name === 'Settings' && el._loaded) { await loaders.Settings(el); }   // fresh values
+      document.getElementById('mainContent').scrollTop = 0;
+    });
+  }
 
   // Book selector
   document.getElementById('bookBtn').addEventListener('click', () => {
@@ -149,19 +156,6 @@ export function renderMain(app) {
       if (err.message !== 'unauthorized') showToast('Failed to clear display — is the display PC on?');
     }
     displayChanged();
-  });
-
-  // Theme toggle
-  const themeBtn = document.getElementById('themeToggle');
-  function applyTheme(light) {
-    document.documentElement.classList.toggle('light', light);
-    themeBtn.textContent = light ? '🌙' : '☀️';
-  }
-  applyTheme(localStorage.getItem('kj_theme') === 'light');
-  themeBtn.addEventListener('click', () => {
-    const light = !document.documentElement.classList.contains('light');
-    localStorage.setItem('kj_theme', light ? 'light' : 'dark');
-    applyTheme(light);
   });
 
   // Load data

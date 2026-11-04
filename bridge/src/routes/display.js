@@ -75,6 +75,53 @@ router.get('/current', async (_req, res) => {
   }
 });
 
+// Display settings for the PWA Settings tab. Each part is null when the server is too old for it
+// (SOAP fault), so the page hides that card — the same rule as the Android app.
+async function optional(fn) {
+  try { return await fn(); } catch (err) { if (err.response) return null; throw err; }
+}
+
+router.get('/settings', async (_req, res) => {
+  try {
+    const clockXml = await optional(() => soap.getClock());
+    const colorsXml = await optional(() => soap.getColors());
+    const hideXml = await optional(() => soap.getHideMinutes());
+    const clock = clockXml ? soap.parseGetClockResponse(clockXml) : -1;
+    const colors = colorsXml && /^[0-9A-Fa-f]{6},[0-9A-Fa-f]{6}$/.test(soap.returnText(colorsXml))
+      ? soap.returnText(colorsXml).toUpperCase().split(',') : null;
+    const hide = hideXml && /^\d{1,4}$/.test(soap.returnText(hideXml)) ? parseInt(soap.returnText(hideXml), 10) : null;
+    res.json({ clock: clock < 0 ? null : clock !== 0, colors, hideMinutes: hide });
+  } catch (err) {
+    console.error('[SOAP] settings failed:', err.message);
+    res.status(503).json({ error: 'soap_unavailable' });
+  }
+});
+
+router.post('/colors', async (req, res) => {
+  const { color1, color2 } = req.body;
+  const ok = (c) => typeof c === 'string' && /^[0-9A-Fa-f]{6}$/.test(c);
+  if (!ok(color1) || !ok(color2)) return res.status(422).json({ error: 'validation_failed' });
+  try {
+    await soap.setColors(color1.toUpperCase(), color2.toUpperCase());
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[SOAP] setColors failed:', err.message);
+    res.status(503).json({ error: 'soap_unavailable' });
+  }
+});
+
+router.post('/hide', async (req, res) => {
+  const minutes = parseInt(req.body.minutes, 10);
+  if (isNaN(minutes) || minutes < 0 || minutes > 1440) return res.status(422).json({ error: 'validation_failed' });
+  try {
+    await soap.setHideMinutes(minutes);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[SOAP] setHideMinutes failed:', err.message);
+    res.status(503).json({ error: 'soap_unavailable' });
+  }
+});
+
 router.get('/clock', async (_req, res) => {
   try {
     const xml = await soap.getClock();

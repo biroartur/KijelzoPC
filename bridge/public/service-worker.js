@@ -1,4 +1,4 @@
-const CACHE = 'kijelzo-v7';
+const CACHE = 'kijelzo-v8';
 const PRECACHE = [
   '/',
   '/css/app.css',
@@ -6,6 +6,8 @@ const PRECACHE = [
   '/js/api.js',
   '/js/screens/main.js',
   '/js/screens/advanced.js',
+  '/js/screens/settings.js',
+  '/js/theme.js',
   '/manifest.json',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
