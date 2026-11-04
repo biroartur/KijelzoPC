@@ -10,6 +10,9 @@ on:
       - 'src/**'
       - 'lib/**'
       - 'build-*.sh'
+      - 'bridge/src/**'
+      - 'bridge/public/**'
+      - 'bridge/package*.json'
       - '.github/workflows/build-jar.yml'
   workflow_dispatch:
 

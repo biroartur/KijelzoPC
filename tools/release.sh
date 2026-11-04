@@ -35,7 +35,7 @@ for pair in pi:raspberry windows:main; do
     jar="$DIST/KijelzoPC-$platform.jar"
     git show "origin/$branch:out/KijelzoPC.jar" > "$jar"
     built=$(unzip -p "$jar" META-INF/MANIFEST.MF | tr -d '\r' | sed -n 's/^Implementation-Version: //p')
-    source=$(git log -1 --format=%h "origin/$branch" -- src lib 'build-*.sh')
+    source=$(git log -1 --format=%h "origin/$branch" -- src lib 'build-*.sh' bridge/src bridge/public 'bridge/package*.json')
     # The build may come from a later commit (several commits pushed at once): it must contain $source
     if [ -z "$built" ] || [[ "$built" == *dirty* ]] || ! git merge-base --is-ancestor "$source" "$built" 2>/dev/null; then
         echo "The $branch JAR (built from ${built:-unknown}) is not the CI build of the latest source ($source)." >&2
