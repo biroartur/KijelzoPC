@@ -303,7 +303,7 @@ public final class Updater {
     }
 
     // Same daily log files as the app (logs/kijelzopc-YYYY-MM-DD.log); the app prunes old ones
-    private static void log(String message) {
+    static void log(String message) {
         String line = new Date() + " @ " + message;
         System.out.println(line);
         File dir = new File("logs");
