@@ -25,12 +25,6 @@ export function renderMain(app) {
           <div class="now-text" id="nowText"></div>
         </div>
 
-        <!-- Tabs -->
-        <div style="display:flex;gap:.5rem;margin-bottom:.25rem">
-          <button class="btn btn-primary" id="tabPresenter" style="flex:1;padding:.55rem">Presenter</button>
-          <button class="btn btn-secondary" id="tabAdvanced" style="flex:1;padding:.55rem">Advanced</button>
-        </div>
-
         <!-- Presenter panel -->
         <div id="presenterPanel">
           <div class="card" style="display:flex;flex-direction:column;gap:.9rem">
@@ -58,6 +52,18 @@ export function renderMain(app) {
         <!-- Advanced panel (hidden initially) -->
         <div id="advancedPanel" style="display:none"></div>
       </div>
+
+      <!-- Floating, rounded bottom menu (same look as the Android app); the page scrolls behind it -->
+      <nav class="float-nav">
+        <button class="nav-item active" id="tabPresenter">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 3H3a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h7v2H8v2h8v-2h-2v-2h7a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm0 13H3V5h18v11z"/></svg>
+          <span>Presenter</span>
+        </button>
+        <button class="nav-item" id="tabAdvanced">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17v2h6v-2H3zM3 5v2h10V5H3zm10 16v-2h8v-2h-8v-2h-2v6h2zM7 9v2H3v2h4v2h2V9H7zm14 4v-2H11v2h10zm-6-4h2V7h4V5h-4V3h-2v6z"/></svg>
+          <span>Advanced</span>
+        </button>
+      </nav>
     </div>
 
     <!-- Book selector modal -->
@@ -77,14 +83,14 @@ export function renderMain(app) {
   document.getElementById('tabPresenter').addEventListener('click', () => {
     document.getElementById('presenterPanel').style.display = '';
     advancedPanel.style.display = 'none';
-    document.getElementById('tabPresenter').className = 'btn btn-primary';
-    document.getElementById('tabAdvanced').className = 'btn btn-secondary';
+    document.getElementById('tabPresenter').classList.add('active');
+    document.getElementById('tabAdvanced').classList.remove('active');
   });
   document.getElementById('tabAdvanced').addEventListener('click', async () => {
     document.getElementById('presenterPanel').style.display = 'none';
     advancedPanel.style.display = '';
-    document.getElementById('tabPresenter').className = 'btn btn-secondary';
-    document.getElementById('tabAdvanced').className = 'btn btn-primary';
+    document.getElementById('tabPresenter').classList.remove('active');
+    document.getElementById('tabAdvanced').classList.add('active');
     if (!advancedPanel._loaded) {
       const { renderAdvanced } = await import('./advanced.js');
       renderAdvanced(advancedPanel, showToast);

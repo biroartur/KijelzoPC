@@ -380,7 +380,7 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; }
 /* ── Toast ───────────────────────────────────────── */
 .toast {
   position: fixed;
-  bottom: calc(5rem + var(--safe-bot));
+  bottom: calc(6.5rem + var(--safe-bot));
   left: 50%;
   transform: translateX(-50%) translateY(20px);
   background: var(--border);
@@ -401,3 +401,36 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; }
 .now-label { font-size: .8rem; color: var(--text-dim); margin-bottom: .2rem; }
 .now-text { font-weight: 700; color: var(--text); white-space: pre-line; overflow-wrap: anywhere; line-height: 1.35; }
 .now-text.empty { font-weight: 500; color: var(--text-dim); }
+
+/* ── Floating bottom menu ────────────────────────── */
+.content { padding-bottom: calc(6.5rem + var(--safe-bot)); }   /* last card scrolls clear of it */
+.float-nav {
+  position: fixed;
+  left: 16px;
+  right: 16px;
+  bottom: calc(12px + var(--safe-bot));
+  display: flex;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 32px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, .25);
+  padding: .35rem;
+  z-index: 100;
+}
+.nav-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: .15rem;
+  background: none;
+  border: none;
+  border-radius: 26px;
+  padding: .45rem 0 .4rem;
+  color: var(--text-dim);
+  font: inherit;
+  font-size: .75rem;
+  cursor: pointer;
+}
+.nav-item svg { width: 24px; height: 24px; fill: currentColor; }
+.nav-item.active { color: var(--accent); font-weight: 700; }
