@@ -45,6 +45,9 @@ public class kijelzoGUI {
     public static final String COLOR1 = "content.color1";
     public static final String COLOR2 = "content.color2";
     private static final String DEFAULT_COLOR = "FFC800";
+    public static final String HIDE_MINUTES = "content.hide.minutes";
+    private static final int DEFAULT_HIDE_MINUTES = 30;
+    private static final int MAX_HIDE_MINUTES = 24 * 60;
 
     public static Properties properties;
 
@@ -340,6 +343,28 @@ public class kijelzoGUI {
             book.setForeground(color(COLOR1));
             number.setForeground(color(COLOR2));
         });
+        return true;
+    }
+
+    /** Minutes the text stays on screen after the last change; 0 = until hidden by hand. */
+    public int getHideMinutes() {
+        try {
+            int minutes = Integer.parseInt(properties.getProperty(HIDE_MINUTES, "").trim());
+            if (minutes >= 0 && minutes <= MAX_HIDE_MINUTES) {
+                return minutes;
+            }
+        } catch (NumberFormatException ignored) {
+        }
+        return DEFAULT_HIDE_MINUTES;
+    }
+
+    /** Sets and saves the hide time (0..1440 minutes); returns false if out of range. */
+    public boolean setHideMinutes(int minutes) {
+        if (minutes < 0 || minutes > MAX_HIDE_MINUTES) {
+            return false;
+        }
+        properties.setProperty(HIDE_MINUTES, String.valueOf(minutes));
+        saveProperties();
         return true;
     }
 
