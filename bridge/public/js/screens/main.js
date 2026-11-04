@@ -19,6 +19,12 @@ export function renderMain(app) {
       </div>
 
       <div class="content" id="mainContent">
+        <!-- What the display shows now (server v1.5+; hidden on older servers) -->
+        <div class="card now-card" id="nowCard" style="display:none">
+          <div class="now-label">On the display:</div>
+          <div class="now-text" id="nowText"></div>
+        </div>
+
         <!-- Tabs -->
         <div style="display:flex;gap:.5rem;margin-bottom:.25rem">
           <button class="btn btn-primary" id="tabPresenter" style="flex:1;padding:.55rem">Presenter</button>
@@ -101,31 +107,42 @@ export function renderMain(app) {
     if (e.target.value !== clean) e.target.value = clean;
   });
 
-  // Send
+  // The keyboard's Enter / Go key sends too (Android, hardware keyboards)
+  document.getElementById('numberInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); document.getElementById('sendBtn').click(); }
+  });
+
+  // Send (no lock: a new number can be sent right away)
   document.getElementById('sendBtn').addEventListener('click', async () => {
     const number = document.getElementById('numberInput').value.trim();
     if (!selectedBook || selectedBook === PLACEHOLDER) { showToast('Please select a book first'); return; }
     if (number === '') { showToast('Please enter a number'); return; }
     try {
-      await apiFetch('/display/hymn', {
+      const data = await apiFetch('/display/hymn', {
         method: 'POST',
         body: JSON.stringify({ title: selectedBook, number: parseInt(number, 10) }),
       });
+      if (data && data.error) throw new Error(data.error);
+      // Cleared only after a successful send; after an error the number stays for another try
+      document.getElementById('numberInput').value = '';
       showToast('Sent!');
     } catch (err) {
-      if (err.message !== 'unauthorized') showToast('Failed to send — is the server reachable?');
+      if (err.message !== 'unauthorized') showToast('Failed to send — is the display PC on?');
     }
+    displayChanged();
   });
 
   // Clear
   document.getElementById('clearBtn').addEventListener('click', async () => {
     try {
-      await apiFetch('/display/blank', { method: 'POST' });
+      const data = await apiFetch('/display/blank', { method: 'POST' });
+      if (data && data.error) throw new Error(data.error);
       document.getElementById('numberInput').value = '';
       showToast('Display cleared');
     } catch (err) {
-      if (err.message !== 'unauthorized') showToast('Failed to clear display');
+      if (err.message !== 'unauthorized') showToast('Failed to clear display — is the display PC on?');
     }
+    displayChanged();
   });
 
   // Theme toggle
@@ -144,6 +161,55 @@ export function renderMain(app) {
   // Load data
   loadBooks();
   checkConnection();
+  startNowShowing();
+}
+
+// ── What the display shows now ───────────────────────────────────────────────
+// Refreshed every 15 s while the page is visible and right after any send / clear (also from the
+// Advanced tab), so changes from phones, other iPhones and the hide timer show up too.
+
+const NOW_REFRESH_MS = 15000;
+let nowTimer = null;
+
+export function displayChanged() {
+  document.dispatchEvent(new Event('kj:display-changed'));
+}
+
+function startNowShowing() {
+  refreshNowShowing();
+  clearInterval(nowTimer);
+  nowTimer = setInterval(() => {
+    if (document.visibilityState === 'visible') refreshNowShowing();
+  }, NOW_REFRESH_MS);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') refreshNowShowing();
+  });
+  document.addEventListener('kj:display-changed', refreshNowShowing);
+}
+
+async function refreshNowShowing() {
+  const card = document.getElementById('nowCard');
+  const text = document.getElementById('nowText');
+  if (!card || !text) return;
+  try {
+    const data = await apiFetch('/display/current');
+    // The bridge answers even while the display PC is off: let the header show the PC's state
+    if (!data || data.error) { card.style.display = 'none'; updateStatus(false); return; }
+    updateStatus(true);
+    if (!data.supported) { card.style.display = 'none'; return; }
+    if (!data.shown) {
+      text.textContent = 'The display is empty';
+      text.classList.add('empty');
+    } else {
+      // Book + number on one row ("Nagykar 12"); two text lines each on their own row
+      const l1 = data.line1 || '', l2 = data.line2 || '';
+      text.textContent = !l2 ? l1 : /^\d{1,4}$/.test(l2) ? `${l1} ${l2}` : `${l1}\n${l2}`;
+      text.classList.remove('empty');
+    }
+    card.style.display = '';
+  } catch {
+    card.style.display = 'none';
+  }
 }
 
 async function loadBooks() {
@@ -178,7 +244,7 @@ function updateStatus(ok) {
   const text = document.getElementById('statusText');
   if (!dot || !text) return;
   dot.className = 'status-dot ' + (ok ? 'ok' : 'err');
-  text.textContent = ok ? 'Connected' : 'Disconnected';
+  text.textContent = ok ? 'Connected' : 'Display PC offline';
 }
 
 function populateBookList() {

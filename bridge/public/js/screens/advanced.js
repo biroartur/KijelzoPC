@@ -1,4 +1,5 @@
 import { apiFetch } from '../api.js';
+import { displayChanged } from './main.js';
 
 const STORAGE_KEY = 'kj_advanced_entries';
 
@@ -61,6 +62,14 @@ export function renderAdvanced(container, showToast) {
       await sendStrings(l1, l2, showToast);
     });
 
+    // Keyboard: Enter on line 1 moves to line 2, Enter on line 2 sends
+    document.getElementById('adv1').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); document.getElementById('adv2').focus(); }
+    });
+    document.getElementById('adv2').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); document.getElementById('advSend').click(); }
+    });
+
     // Save entry
     document.getElementById('advSave').addEventListener('click', () => {
       const l1 = document.getElementById('adv1').value.trim();
@@ -76,11 +85,13 @@ export function renderAdvanced(container, showToast) {
     // Clear display
     document.getElementById('advClear').addEventListener('click', async () => {
       try {
-        await apiFetch('/display/blank', { method: 'POST' });
+        const data = await apiFetch('/display/blank', { method: 'POST' });
+        if (data && data.error) throw new Error(data.error);
         showToast('Display cleared');
       } catch (err) {
-        if (err.message !== 'unauthorized') showToast('Failed to clear display');
+        if (err.message !== 'unauthorized') showToast('Failed to clear display — is the display PC on?');
       }
+      displayChanged();
     });
 
     // Clear all saved entries
@@ -112,9 +123,11 @@ export function renderAdvanced(container, showToast) {
         if (item && !e.target.closest('[data-del]')) {
           const idx = parseInt(item.dataset.idx, 10);
           const entry = entries[idx];
-          const preview = [entry.line1, entry.line2].filter(Boolean).join(' / ');
+          // Both lines in full, each on its own row
+          const preview = [entry.line1, entry.line2].filter(Boolean).join('\n');
           if (!confirm(`Send to display?\n\n${preview}`)) return;
-          await sendStrings(entry.line1, entry.line2, showToast);
+          // Marked as "on the display" only when the send really worked
+          if (!(await sendStrings(entry.line1, entry.line2, showToast))) return;
           entries = entries.map((en, i) => ({ ...en, sent: i === idx }));
           saveEntries(entries);
           render();
@@ -126,16 +139,22 @@ export function renderAdvanced(container, showToast) {
   render();
 }
 
+// Returns true when the display PC received the text
 async function sendStrings(line1, line2, showToast) {
+  let ok = false;
   try {
-    await apiFetch('/display/strings', {
+    const data = await apiFetch('/display/strings', {
       method: 'POST',
       body: JSON.stringify({ line1, line2 }),
     });
+    if (data && data.error) throw new Error(data.error);
     showToast('Sent!');
+    ok = true;
   } catch (err) {
-    if (err.message !== 'unauthorized') showToast('Failed to send — is the server reachable?');
+    if (err.message !== 'unauthorized') showToast('Failed to send — is the display PC on?');
   }
+  displayChanged();
+  return ok;
 }
 
 function escHtml(s) {

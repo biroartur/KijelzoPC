@@ -395,3 +395,9 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; }
   z-index: 200;
 }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* What the display shows now (top of the page) */
+.now-card { padding: .75rem 1rem; }
+.now-label { font-size: .8rem; color: var(--text-dim); margin-bottom: .2rem; }
+.now-text { font-weight: 700; color: var(--text); white-space: pre-line; overflow-wrap: anywhere; line-height: 1.35; }
+.now-text.empty { font-weight: 500; color: var(--text-dim); }

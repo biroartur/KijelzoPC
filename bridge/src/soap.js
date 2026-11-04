@@ -52,6 +52,27 @@ function parseGetListResponse(xml) {
     .filter(Boolean);
 }
 
+function unescXml(s) {
+  return s
+    .replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"').replace(/&apos;/g, "'")
+    .replace(/&#10;/g, '\n').replace(/&#13;/g, '')
+    .replace(/&amp;/g, '&');
+}
+
+// getCurrent (server v1.5+): "line1\nline2", or empty while the display is cleared
+function parseGetCurrentResponse(xml) {
+  const match = xml.match(/<return>([\s\S]*?)<\/return>/);
+  const text = match ? unescXml(match[1]) : '';
+  if (!text) return { shown: false, line1: '', line2: '' };
+  const i = text.indexOf('\n');
+  return {
+    shown: true,
+    line1: stripHtml(i < 0 ? text : text.slice(0, i)),
+    line2: stripHtml(i < 0 ? '' : text.slice(i + 1)),
+  };
+}
+
 function parseGetClockResponse(xml) {
   const match = xml.match(/<return>(-?\d+)<\/return>/);
   return match ? parseInt(match[1], 10) : -1;
@@ -67,9 +88,11 @@ module.exports = {
       `<string1>${escXml(s1)}</string1><string2>${escXml(s2)}</string2>`),
   setBlank: () => call('setBlank'),
   getClock: () => call('getClock'),
+  getCurrent: () => call('getCurrent'),
   setClock: (value) => call('setClock', `<value>${escXml(value)}</value>`),
   addBook: (title) => call('addBook', `<title>${escXml(title)}</title>`),
   deleteBook: (title) => call('deleteBook', `<title>${escXml(title)}</title>`),
   parseGetListResponse,
   parseGetClockResponse,
+  parseGetCurrentResponse,
 };

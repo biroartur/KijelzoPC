@@ -62,6 +62,19 @@ router.post('/blank', async (_req, res) => {
   }
 });
 
+// What the display shows now. Servers before v1.5 have no getCurrent: they answer with a SOAP
+// fault, reported as { supported: false } so the page simply hides the line.
+router.get('/current', async (_req, res) => {
+  try {
+    const xml = await soap.getCurrent();
+    res.json({ supported: true, ...soap.parseGetCurrentResponse(xml) });
+  } catch (err) {
+    if (err.response) return res.json({ supported: false });
+    console.error('[SOAP] getCurrent failed:', err.message);
+    res.status(503).json({ error: 'soap_unavailable' });
+  }
+});
+
 router.get('/clock', async (_req, res) => {
   try {
     const xml = await soap.getClock();
