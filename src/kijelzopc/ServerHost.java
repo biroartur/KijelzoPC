@@ -23,7 +23,7 @@ public final class ServerHost {
 
     public static HttpServer start(String wsdlUrl) throws IOException {
         URL url = new URL(wsdlUrl);
-        HttpServer server = HttpServer.create(new InetSocketAddress(url.getHost(), url.getPort()), 0);
+        HttpServer server = bindWhenNetworkReady(url.getHost(), url.getPort());
         server.createContext("/activation", new HttpHandler() {
             public void handle(HttpExchange exchange) throws IOException {
                 int status = 200;
@@ -47,6 +47,38 @@ public final class ServerHost {
         });
         server.start();
         return server;
+    }
+
+    /**
+     * Opens the port on the display's fixed address. After a power cut the router (or the Pi's
+     * Wi-Fi) is often slower than the display, so the address does not exist yet: instead of
+     * giving up, wait and try again every 5 seconds until the network is there.
+     */
+    private static HttpServer bindWhenNetworkReady(String host, int port) throws IOException {
+        long started = System.currentTimeMillis();
+        long lastLog = 0;
+        while (true) {
+            try {
+                HttpServer server = HttpServer.create(new InetSocketAddress(host, port), 0);
+                if (lastLog > 0) {
+                    Updater.log("network ready after " + (System.currentTimeMillis() - started) / 1000
+                            + " s, listening on " + host + ":" + port);
+                }
+                return server;
+            } catch (java.net.BindException e) {
+                long now = System.currentTimeMillis();
+                if (now - lastLog > 60000) {    // one log line a minute while waiting
+                    Updater.log("waiting for the network (" + host + " not available yet: " + e.getMessage() + ")");
+                    lastLog = now;
+                }
+                try {
+                    Thread.sleep(5000);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    throw e;
+                }
+            }
+        }
     }
 
     public static void publish(HttpServer server, String wsdlUrl, Object module) throws IOException {
