@@ -124,6 +124,16 @@ if sudo -n true 2>/dev/null; then
         command -v ethtool >/dev/null || sudo -n apt-get install -y -qq ethtool >/dev/null 2>&1 || true
         sudo -n systemctl daemon-reload
         sudo -n systemctl enable -q kijelzo-wol.service 2>/dev/null || true
+        # Some PCs with an Intel USB 3 (xHCI) controller switch themselves back on ~20 s after power-off
+        # (seen on a Lenovo ThinkCentre M73 at the daily 22:00 shutdown). Releasing the controller at the
+        # very end of power-off prevents it; Wake-on-LAN keeps working, restarts are not affected.
+        sudo -n mkdir -p /usr/lib/systemd/system-shutdown
+        printf '%s\n' '#!/bin/sh' '# Kijelzo: stop Intel USB 3 controllers from switching the PC back on after power-off' \
+            '[ "$1" = "poweroff" ] || exit 0' \
+            'for d in /sys/bus/pci/drivers/xhci_hcd/0000:*; do' \
+            '    [ -e "$d" ] && echo "${d##*/}" > /sys/bus/pci/drivers/xhci_hcd/unbind 2>/dev/null' \
+            'done' 'exit 0' | sudo -n tee /usr/lib/systemd/system-shutdown/kijelzo-usb-off.sh >/dev/null
+        sudo -n chmod 755 /usr/lib/systemd/system-shutdown/kijelzo-usb-off.sh
     fi
 
     if [ "$IS_PI" = 1 ]; then
