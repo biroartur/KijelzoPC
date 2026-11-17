@@ -8,6 +8,8 @@ const COLORS = [
   ['FF3030', 'Red'], ['3399FF', 'Blue'], ['66CCFF', 'Light blue'], ['A0A0A0', 'Gray'],
   ['FF66CC', 'Pink'], ['B580FF', 'Purple'],
 ];
+// The clock may also be dark gray: discreet, yet readable on the black screen
+const CLOCK_COLORS = [...COLORS.slice(0, 8), ['505050', 'Dark gray (discreet)'], ...COLORS.slice(8)];
 const HIDE = [5, 10, 15, 20, 30, 45, 60, 90, 120, 180, 0];
 
 export function renderSettings(container, showToast) {
@@ -27,10 +29,14 @@ export function renderSettings(container, showToast) {
         <label class="settings-row">
           <span>
             <span class="settings-title">Show Clock</span>
-            <span class="settings-hint">Shows the time on the display while no text is shown</span>
+            <span class="settings-hint">Shows the time while no text is shown; it moves to a new spot now and then</span>
           </span>
           <input type="checkbox" id="setClock">
         </label>
+        <div id="clockColorWrap" style="display:none">
+          <label>Clock colour</label>
+          <select id="setClockColor">${colorOptions(CLOCK_COLORS)}</select>
+        </div>
       </div>
 
       <div class="card settings-card" id="cardColors" style="display:none">
@@ -65,8 +71,8 @@ export function renderSettings(container, showToast) {
   load(container, showToast);
 }
 
-function colorOptions() {
-  return COLORS.map(([v, n]) => `<option value="${v}">${n}</option>`).join('');
+function colorOptions(list = COLORS) {
+  return list.map(([v, n]) => `<option value="${v}">${n}</option>`).join('');
 }
 
 async function load(container, showToast) {
@@ -87,6 +93,14 @@ async function load(container, showToast) {
     container.querySelector('#cardClock').style.display = '';
     cb.addEventListener('change', () =>
       save('/display/clock', { value: cb.checked ? '1' : '0' }, showToast));
+  }
+
+  if (data.clockColor) {
+    const sel = container.querySelector('#setClockColor');
+    if (![...sel.options].some((o) => o.value === data.clockColor)) sel.add(new Option(`Custom (#${data.clockColor})`, data.clockColor));
+    sel.value = data.clockColor;
+    sel.addEventListener('change', () => save('/display/clock-color', { color: sel.value }, showToast));
+    container.querySelector('#clockColorWrap').style.display = '';
   }
 
   if (data.colors) {

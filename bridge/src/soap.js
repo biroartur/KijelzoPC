@@ -92,6 +92,8 @@ module.exports = {
   getColors: () => call('getColors'),
   setColors: (c1, c2) => call('setColors', `<color1>${escXml(c1)}</color1><color2>${escXml(c2)}</color2>`),
   getHideMinutes: () => call('getHideMinutes'),
+  getClockColor: () => call('getClockColor'),
+  setClockColor: (c) => call('setClockColor', `<color>${escXml(c)}</color>`),
   setHideMinutes: (m) => call('setHideMinutes', `<minutes>${parseInt(m, 10)}</minutes>`),
   returnText: (xml) => { const m = xml.match(/<return>([\s\S]*?)<\/return>/); return m ? m[1].trim() : ''; },
   setClock: (value) => call('setClock', `<value>${escXml(value)}</value>`),

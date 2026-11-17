@@ -86,11 +86,14 @@ router.get('/settings', async (_req, res) => {
     const clockXml = await optional(() => soap.getClock());
     const colorsXml = await optional(() => soap.getColors());
     const hideXml = await optional(() => soap.getHideMinutes());
+    const clockColorXml = await optional(() => soap.getClockColor());
     const clock = clockXml ? soap.parseGetClockResponse(clockXml) : -1;
     const colors = colorsXml && /^[0-9A-Fa-f]{6},[0-9A-Fa-f]{6}$/.test(soap.returnText(colorsXml))
       ? soap.returnText(colorsXml).toUpperCase().split(',') : null;
     const hide = hideXml && /^\d{1,4}$/.test(soap.returnText(hideXml)) ? parseInt(soap.returnText(hideXml), 10) : null;
-    res.json({ clock: clock < 0 ? null : clock !== 0, colors, hideMinutes: hide });
+    const clockColor = clockColorXml && /^[0-9A-Fa-f]{6}$/.test(soap.returnText(clockColorXml))
+      ? soap.returnText(clockColorXml).toUpperCase() : null;   // server v1.7+
+    res.json({ clock: clock < 0 ? null : clock !== 0, colors, hideMinutes: hide, clockColor });
   } catch (err) {
     console.error('[SOAP] settings failed:', err.message);
     res.status(503).json({ error: 'soap_unavailable' });
@@ -106,6 +109,18 @@ router.post('/colors', async (req, res) => {
     res.json({ ok: true });
   } catch (err) {
     console.error('[SOAP] setColors failed:', err.message);
+    res.status(503).json({ error: 'soap_unavailable' });
+  }
+});
+
+router.post('/clock-color', async (req, res) => {
+  const { color } = req.body;
+  if (typeof color !== 'string' || !/^[0-9A-Fa-f]{6}$/.test(color)) return res.status(422).json({ error: 'validation_failed' });
+  try {
+    await soap.setClockColor(color.toUpperCase());
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[SOAP] setClockColor failed:', err.message);
     res.status(503).json({ error: 'soap_unavailable' });
   }
 });

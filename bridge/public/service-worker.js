@@ -1,4 +1,4 @@
-const CACHE = 'kijelzo-v8';
+const CACHE = 'kijelzo-v9';
 const PRECACHE = [
   '/',
   '/css/app.css',
