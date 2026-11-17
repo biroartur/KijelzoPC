@@ -269,6 +269,23 @@ public class WSServer {
         log("setColors requested to " + color1 + " and " + color2 + " " + successful);
     }
 
+    // Colour of the clock as RRGGBB (default orange). Older servers lack these methods; the apps hide
+    // the clock colour setting when getClockColor fails.
+    @WebMethod
+    public String getClockColor() {
+        log("getClockColor requested");
+        return gui.getClockColor();
+    }
+
+    @WebMethod
+    public boolean setClockColor(
+            @WebParam(name = "color") String color
+    ) {
+        boolean successful = gui.setClockColor(color);
+        log("setClockColor requested to " + color + " " + successful);
+        return successful;
+    }
+
     // Minutes the text stays on screen after the last change (0 = until hidden by hand, default 30).
     // Older servers lack these methods; the Android app hides the setting when getHideMinutes fails.
     @WebMethod
