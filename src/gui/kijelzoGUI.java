@@ -31,6 +31,13 @@ public class kijelzoGUI {
     private JLabel time;
     private FadingPanel panel;
     private JPanel timepanel;
+    // The clock sits in a full-screen box; two spacers place it at a random spot that changes every
+    // few minutes, so its digits never stay on the same pixels (no burn-in on the display).
+    private Box clockBox;
+    private Box.Filler clockLeft;
+    private Box.Filler clockTop;
+    private Box.Filler clockBottom;
+    private final java.util.Random random = new java.util.Random();
     private int componentWidth;
     private int componentHeight;
     private String oldstring;
@@ -45,6 +52,12 @@ public class kijelzoGUI {
     public static final String COLOR1 = "content.color1";
     public static final String COLOR2 = "content.color2";
     private static final String DEFAULT_COLOR = "FFC800";
+    // Clock colour as RRGGBB (orange by default) and how often the clock moves (minutes, 0 = never)
+    public static final String CLOCK_COLOR = "content.time.color";
+    public static final String CLOCK_MOVE_MINUTES = "content.time.move.minutes";
+    private static final int DEFAULT_CLOCK_MOVE_MINUTES = 5;
+    // A full fade of the panel takes ~2.5 s (FadingPanel: 0.03 per 75 ms); wait a bit longer
+    private static final int CLOCK_FADE_MS = 2800;
     public static final String HIDE_MINUTES = "content.hide.minutes";
     private static final int DEFAULT_HIDE_MINUTES = 30;
     private static final int MAX_HIDE_MINUTES = 24 * 60;
@@ -124,7 +137,7 @@ public class kijelzoGUI {
         panel.add(Box.createVerticalGlue());
         panel.add(book);
         panel.add(number);
-        panel.add(time);
+        panel.add(createClockBox());
         panel.add(Box.createVerticalGlue());
 
         //panel.set
@@ -159,8 +172,9 @@ public class kijelzoGUI {
         book.setFont(font);
 
         Font timefont = new Font("Serif", Font.PLAIN, 200);
-        time.setForeground(Color.ORANGE);
+        time.setForeground(color(CLOCK_COLOR));
         time.setFont(timefont);
+        clockBox.setVisible(false);
 
 
         f.setCursor(Toolkit.getDefaultToolkit().createCustomCursor(
@@ -178,11 +192,17 @@ public class kijelzoGUI {
         TimeThread tt = new TimeThread();
         tt.start();
 
+        int moveMinutes = clockMoveMinutes();
+        if (moveMinutes > 0) {
+            javax.swing.Timer mover = new javax.swing.Timer(moveMinutes * 60 * 1000, e -> relocateClock());
+            mover.start();
+        }
+
         if ("1".equals(properties.getProperty(SHOWTIME))) {
             javax.swing.Timer startupClock = new javax.swing.Timer(10000, e -> {
                 ((javax.swing.Timer) e.getSource()).stop();
                 if (!contentVisible) {
-                    time.setVisible(true);
+                    showClock();
                     panel.myShow(true);
                 }
             });
@@ -192,6 +212,91 @@ public class kijelzoGUI {
 
     }
 
+    /** The clock area: a row (left spacer, time, glue) between a top and a bottom spacer. */
+    private Box createClockBox() {
+        Dimension none = new Dimension(0, 0);
+        clockLeft = new Box.Filler(none, none, none);
+        clockTop = new Box.Filler(none, none, none);
+        clockBottom = new Box.Filler(none, none, none);
+        Box row = Box.createHorizontalBox();
+        row.add(clockLeft);
+        row.add(time);
+        row.add(Box.createHorizontalGlue());
+        clockBox = Box.createVerticalBox();
+        clockBox.add(clockTop);
+        clockBox.add(row);
+        clockBox.add(clockBottom);
+        return clockBox;
+    }
+
+    /** Shows the clock at a new random spot. */
+    private void showClock() {
+        moveClock();
+        clockBox.setVisible(true);
+    }
+
+    /**
+     * Moves a clock that is on screen: fades it out, puts it at a new random spot and fades it in
+     * there. Skipped when text is shown or the clock is hidden (it gets a new spot when it reappears).
+     * If text arrives during the fade, the text's own fade-in takes over and the clock stays hidden.
+     */
+    private void relocateClock() {
+        if (contentVisible || !clockBox.isVisible()) {
+            return;
+        }
+        panel.myHide(true);
+        javax.swing.Timer fadeIn = new javax.swing.Timer(CLOCK_FADE_MS, e -> {
+            if (!contentVisible && clockBox.isVisible()) {
+                moveClock();
+                panel.myShow(true);
+            }
+        });
+        fadeIn.setRepeats(false);
+        fadeIn.start();
+    }
+
+    /** Puts the clock at a random spot on the screen, keeping a small margin from the edges. */
+    private void moveClock() {
+        if (clockMoveMinutes() == 0) {
+            setClockSpacers(-1, -1);   // fixed in the middle, as before
+            return;
+        }
+        Dimension size = time.getPreferredSize();
+        int margin = Math.min(f.getWidth(), f.getHeight()) / 20;
+        int freeX = Math.max(0, f.getWidth() - size.width - 2 * margin);
+        int freeY = Math.max(0, f.getHeight() - size.height - 2 * margin);
+        setClockSpacers(random.nextInt(freeX + 1), random.nextInt(freeY + 1));
+    }
+
+    /** x, y = offset inside the free area; -1, -1 = centred. */
+    private void setClockSpacers(int x, int y) {
+        Dimension size = time.getPreferredSize();
+        int margin = Math.min(f.getWidth(), f.getHeight()) / 20;
+        int freeX = Math.max(0, f.getWidth() - size.width - 2 * margin);
+        int freeY = Math.max(0, f.getHeight() - size.height - 2 * margin);
+        if (x < 0) x = freeX / 2;
+        if (y < 0) y = freeY / 2;
+        Dimension left = new Dimension(x, 0);
+        Dimension top = new Dimension(0, y);
+        Dimension bottom = new Dimension(0, freeY - y);
+        clockLeft.changeShape(left, left, left);
+        clockTop.changeShape(top, top, top);
+        clockBottom.changeShape(bottom, bottom, bottom);
+        clockBox.revalidate();
+        panel.repaint();
+    }
+
+    private static int clockMoveMinutes() {
+        try {
+            int minutes = Integer.parseInt(properties.getProperty(CLOCK_MOVE_MINUTES, "").trim());
+            if (minutes >= 0 && minutes <= 24 * 60) {
+                return minutes;
+            }
+        } catch (NumberFormatException ignored) {
+        }
+        return DEFAULT_CLOCK_MOVE_MINUTES;
+    }
+
     public void setTime(String time) {
         //timepanel.setVisible(true);
     }
@@ -199,11 +304,11 @@ public class kijelzoGUI {
     public void setNumber(String number) {
         //this.number.setText(number);
         SetTextAndWait(this.number, number);
-        time.setVisible(false);
+        clockBox.setVisible(false);
     }
 
     public void setBook(String book) {
-        time.setVisible(false);
+        clockBox.setVisible(false);
         SetTextAndWait(this.book, book);
     }
 
@@ -214,7 +319,7 @@ public class kijelzoGUI {
 
     public void show(boolean animate) {
         contentVisible = true;
-        time.setVisible(false);
+        clockBox.setVisible(false);
         panel.myShow(animate);
     }
 
@@ -233,7 +338,7 @@ public class kijelzoGUI {
                 javax.swing.Timer clockTimer = new javax.swing.Timer(10000, e -> {
                     ((javax.swing.Timer) e.getSource()).stop();
                     if (!contentVisible) {
-                        time.setVisible(true);
+                        showClock();
                         panel.myShow(true);
                     }
                 });
@@ -343,6 +448,22 @@ public class kijelzoGUI {
             book.setForeground(color(COLOR1));
             number.setForeground(color(COLOR2));
         });
+        return true;
+    }
+
+    /** Clock colour as RRGGBB. */
+    public String getClockColor() {
+        return colorValue(CLOCK_COLOR);
+    }
+
+    /** Sets and saves the clock colour (RRGGBB, '#' optional); returns false if invalid. */
+    public boolean setClockColor(String value) {
+        if (!isColor(value)) {
+            return false;
+        }
+        properties.setProperty(CLOCK_COLOR, value.trim().replace("#", "").toUpperCase());
+        saveProperties();
+        SwingUtilities.invokeLater(() -> time.setForeground(color(CLOCK_COLOR)));
         return true;
     }
 
