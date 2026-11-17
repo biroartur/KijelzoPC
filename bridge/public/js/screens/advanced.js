@@ -28,8 +28,8 @@ export function renderAdvanced(container, showToast) {
             <input type="text" id="adv2" maxlength="26" placeholder="Second line…">
           </div>
           <div class="action-row">
-            <button class="btn btn-primary" id="advSend">Send</button>
-            <button class="btn btn-secondary" id="advSave">Save</button>
+            <button class="btn btn-primary" id="advSave">Save</button>
+            <button class="btn btn-secondary" id="advSend">Send</button>
           </div>
         </div>
 
@@ -62,12 +62,12 @@ export function renderAdvanced(container, showToast) {
       await sendStrings(l1, l2, showToast);
     });
 
-    // Keyboard: Enter on line 1 moves to line 2, Enter on line 2 sends
+    // Keyboard: Enter on line 1 moves to line 2, Enter on line 2 saves (the main action)
     document.getElementById('adv1').addEventListener('keydown', (e) => {
       if (e.key === 'Enter') { e.preventDefault(); document.getElementById('adv2').focus(); }
     });
     document.getElementById('adv2').addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') { e.preventDefault(); document.getElementById('advSend').click(); }
+      if (e.key === 'Enter') { e.preventDefault(); document.getElementById('advSave').click(); }
     });
 
     // Save entry

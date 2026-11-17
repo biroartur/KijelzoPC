@@ -8,8 +8,8 @@ const COLORS = [
   ['FF3030', 'Red'], ['3399FF', 'Blue'], ['66CCFF', 'Light blue'], ['A0A0A0', 'Gray'],
   ['FF66CC', 'Pink'], ['B580FF', 'Purple'],
 ];
-// The clock may also be dark gray: discreet, yet readable on the black screen
-const CLOCK_COLORS = [...COLORS.slice(0, 8), ['505050', 'Dark gray (discreet)'], ...COLORS.slice(8)];
+// The clock is dark gray by default: discreet, yet readable on the black screen
+const CLOCK_COLORS = [['505050', 'Dark gray (default)'], ['FFC800', 'Orange'], ...COLORS.slice(1)];
 const HIDE = [5, 10, 15, 20, 30, 45, 60, 90, 120, 180, 0];
 
 export function renderSettings(container, showToast) {
