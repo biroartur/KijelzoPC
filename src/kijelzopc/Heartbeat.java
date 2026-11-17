@@ -17,7 +17,10 @@ import java.util.Map;
 public final class Heartbeat implements Runnable {
 
     public static final String ADMIN_URL = "admin.url";
-    public static final String DEFAULT_ADMIN_URL = "https://kijelzoadmin.szeretet.ro/api/heartbeat.php";
+    public static final String DEFAULT_ADMIN_URL = "https://kijelzoszerver.szeretet.ro/admin/api/heartbeat.php";
+    // The dashboard moved here from kijelzoadmin.szeretet.ro (2026-11); devices installed before
+    // still have the old address in server.properties, so it is replaced on the fly.
+    private static final String OLD_ADMIN_HOST = "kijelzoadmin.szeretet.ro";
     private static final long INTERVAL_MS = 60 * 1000L;
 
     private final String url;
@@ -36,6 +39,9 @@ public final class Heartbeat implements Runnable {
         if (url.isEmpty() || url.equalsIgnoreCase("off")) {
             System.out.println("Admin heartbeat disabled (" + ADMIN_URL + "=off)");
             return;
+        }
+        if (url.contains(OLD_ADMIN_HOST)) {
+            url = DEFAULT_ADMIN_URL;
         }
         String localIp = "";
         try {
