@@ -52,7 +52,9 @@ public class kijelzoGUI {
     public static final String COLOR1 = "content.color1";
     public static final String COLOR2 = "content.color2";
     private static final String DEFAULT_COLOR = "FFC800";
-    // Clock colour as RRGGBB (orange by default) and how often the clock moves (minutes, 0 = never)
+    // The clock is dark gray by default: discreet, yet readable on the black screen
+    private static final String DEFAULT_CLOCK_COLOR = "505050";
+    // Clock colour as RRGGBB (dark gray by default) and how often the clock moves (minutes, 0 = never)
     public static final String CLOCK_COLOR = "content.time.color";
     public static final String CLOCK_MOVE_MINUTES = "content.time.move.minutes";
     private static final int DEFAULT_CLOCK_MOVE_MINUTES = 5;
@@ -494,8 +496,9 @@ public class kijelzoGUI {
     }
 
     private static String colorValue(String key) {
-        String value = properties.getProperty(key, DEFAULT_COLOR);
-        return isColor(value) ? value.trim().replace("#", "").toUpperCase() : DEFAULT_COLOR;
+        String fallback = CLOCK_COLOR.equals(key) ? DEFAULT_CLOCK_COLOR : DEFAULT_COLOR;
+        String value = properties.getProperty(key, fallback);
+        return isColor(value) ? value.trim().replace("#", "").toUpperCase() : fallback;
     }
 
     private static Color color(String key) {
