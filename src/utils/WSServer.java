@@ -1,7 +1,12 @@
 package utils;
 
 import gui.kijelzoGUI;
+import kijelzopc.ActivityLog;
 import kijelzopc.Main;
+
+import javax.annotation.Resource;
+import javax.xml.ws.WebServiceContext;
+import javax.xml.ws.handler.MessageContext;
 
 import javax.jws.WebMethod;
 import javax.jws.WebParam;
@@ -63,12 +68,42 @@ public class WSServer {
 
     final kijelzoGUI gui = new gui.kijelzoGUI();
 
+    // Gives access to the caller's network address (for the activity log); injected by JAX-WS
+    @Resource
+    private WebServiceContext wsContext;
+
+    // Address of the phone that called this method; the iPhone page comes through the local bridge (127.0.0.1)
+    private String callerAddress() {
+        try {
+            MessageContext mc = wsContext.getMessageContext();
+            for (String key : mc.keySet()) {
+                if (key.endsWith("http.exchange")) {   // com.sun.xml.ws... (Pi/Linux) or com.sun.xml.internal.ws... (Windows Java 8)
+                    Object exchange = mc.get(key);
+                    if (exchange instanceof com.sun.net.httpserver.HttpExchange) {
+                        return ((com.sun.net.httpserver.HttpExchange) exchange).getRemoteAddress().getAddress().getHostAddress();
+                    }
+                }
+            }
+        } catch (RuntimeException ignored) {
+        }
+        return null;
+    }
+
+    // Records one event for the admin dashboard with where it came from
+    private void activity(String type, String a, String b) {
+        String client = callerAddress();
+        String source = client == null ? null
+                : (client.equals("127.0.0.1") || client.equals("0:0:0:0:0:0:0:1") || client.equals("::1")) ? "iphone" : "android";
+        ActivityLog.record(type, a, b, source, "iphone".equals(source) ? null : client);
+    }
+
     public WSServer() {
         hideTimer = new Timer(30*60*1000, new ActionListener() {
 
             public void actionPerformed(ActionEvent e) {
                 gui.hide(true);
                 contentShown = false;
+                ActivityLog.record("autohide", null, null, null, null);
                 gui.setTime("12:20");
 
                 ((Timer)e.getSource()).stop();
@@ -118,6 +153,7 @@ public class WSServer {
             long now = System.currentTimeMillis();
             if (shutdownDue(lastCheck[0], now, time[0], time[1])) {
                 log("daily shutdown time " + String.format("%02d:%02d", time[0], time[1]) + " reached, shutting down");
+                ActivityLog.record("shutdown", String.format("%02d:%02d", time[0], time[1]), null, null, null);
                 shutdownComputer();
             }
             lastCheck[0] = now;
@@ -195,6 +231,7 @@ public class WSServer {
         remember(title, "");
         restartHideTimer();
         lastCommandAt = System.currentTimeMillis();
+        activity("title", title, null);
         log("setTitle requested to" + title );
     }
 
@@ -205,6 +242,7 @@ public class WSServer {
         //gui.setNumber(" ");
         gui.hide(true);
         contentShown = false;
+        activity("clear", null, null);
         log("setBlank requested");
     }
 
@@ -220,6 +258,7 @@ public class WSServer {
         remember(title, String.valueOf(number));
         restartHideTimer();
         lastCommandAt = System.currentTimeMillis();
+        activity("hymn", title, String.valueOf(number));
         log("setTitleAndNumber requested to " + title + " and " + number);
     }
 
@@ -235,6 +274,7 @@ public class WSServer {
         remember(string1, string2);
         restartHideTimer();
         lastCommandAt = System.currentTimeMillis();
+        activity("text", string1, string2);
         log("setStrings requested to " + string1 + " and " + string2);
     }
 
@@ -249,6 +289,7 @@ public class WSServer {
             @WebParam(name = "value") String value
     ) {
         gui.setClock(value);
+        activity("setting", "clock", value);
         log("setClock requested to " + value);
     }
 
@@ -266,6 +307,7 @@ public class WSServer {
             @WebParam(name = "color2") String color2
     ) {
         boolean successful = gui.setColors(color1, color2);
+        if (successful) activity("setting", "colors", color1 + "," + color2);
         log("setColors requested to " + color1 + " and " + color2 + " " + successful);
     }
 
@@ -282,6 +324,7 @@ public class WSServer {
             @WebParam(name = "color") String color
     ) {
         boolean successful = gui.setClockColor(color);
+        if (successful) activity("setting", "clockColor", color);
         log("setClockColor requested to " + color + " " + successful);
         return successful;
     }
@@ -306,6 +349,7 @@ public class WSServer {
                 }
             });
         }
+        if (successful) activity("setting", "hideMinutes", String.valueOf(minutes));
         log("setHideMinutes requested to " + minutes + " " + successful);
     }
 
@@ -347,6 +391,7 @@ public class WSServer {
             kept.append(line).append("\n");
         }
         boolean successful = writeBooks(kept.toString());
+        if (successful) activity("books", "delete", title);
         log("deleteBook requested to " + title + " " + successful);
     }
 
@@ -371,6 +416,7 @@ public class WSServer {
             return;
         }
         boolean successful = writeBooks(content.toString());
+        if (successful) activity("books", "list", String.valueOf(count));
         log("setBookList requested with " + count + " books " + successful);
     }
 
@@ -412,6 +458,7 @@ public class WSServer {
         }
         content.append(title).append("\n");
         boolean successful = writeBooks(content.toString());
+        if (successful) activity("books", "add", title);
         log("addBook requested to " + title + " " + successful);
     }
 
