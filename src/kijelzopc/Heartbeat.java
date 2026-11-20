@@ -49,6 +49,7 @@ public final class Heartbeat implements Runnable {
         } catch (IOException ignored) {
         }
         String shutdownTime = properties.getProperty(WSServer.SHUTDOWN_TIME, "22:00").trim();
+        ActivityLog.record("start", versionText(), System.getProperty("os.name"), null, null);
         Thread thread = new Thread(new Heartbeat(url, localIp, shutdownTime), "admin-heartbeat");
         thread.setDaemon(true);
         thread.start();
@@ -70,9 +71,16 @@ public final class Heartbeat implements Runnable {
         }
     }
 
+    // Events sent with one report; more wait for the next minute
+    private static final int EVENTS_PER_REPORT = 200;
+
     private void send() {
         try {
-            byte[] body = toJson(collect()).getBytes("UTF-8");
+            int eventCount = Math.min(EVENTS_PER_REPORT, ActivityLog.size());
+            String json = toJson(collect());
+            // "events": raw JSON array appended to the report (toJson only writes plain values)
+            json = json.substring(0, json.length() - 1) + ",\"events\":" + ActivityLog.peekJson(eventCount) + "}";
+            byte[] body = json.getBytes("UTF-8");
             HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
             conn.setConnectTimeout(10000);
             conn.setReadTimeout(10000);
@@ -86,9 +94,15 @@ public final class Heartbeat implements Runnable {
                 out.close();
             }
             int status = conn.getResponseCode();
+            String answer = status < 400 ? readAll(conn.getInputStream()) : "";
             conn.disconnect();
             if (status >= 400) {
                 throw new IOException("HTTP " + status);
+            }
+            // The dashboard answers how many of the sent events it stored ({"events":n}); older ones don't
+            java.util.regex.Matcher stored = java.util.regex.Pattern.compile("\"events\"\\s*:\\s*(\\d+)").matcher(answer);
+            if (stored.find()) {
+                ActivityLog.delivered(Math.min(eventCount, Integer.parseInt(stored.group(1))));
             }
             if (lastFailed) {
                 System.out.println("Admin heartbeat working again");
@@ -113,12 +127,7 @@ public final class Heartbeat implements Runnable {
         // Lets the dashboard tell a Raspberry Pi from a PC: processor type and hardware model
         m.put("arch", System.getProperty("os.arch"));
         m.put("model", windows ? null : linuxModel());
-        String version = Heartbeat.class.getPackage().getImplementationVersion();
-        if (version == null) {
-            version = "dev";
-        }
-        String release = Updater.installedVersion();
-        m.put("version", release == null ? version : release + " (" + version + ")");
+        m.put("version", versionText());
         m.put("hostname", hostname());
         m.put("localIp", localIp);
         m.put("shutdownTime", shutdownTime);
@@ -155,6 +164,27 @@ public final class Heartbeat implements Runnable {
             m.put("systemUptime", (long) Double.parseDouble(uptime.split("\\s+")[0]));
         }
         return m;
+    }
+
+    private static String versionText() {
+        String version = Heartbeat.class.getPackage().getImplementationVersion();
+        if (version == null) {
+            version = "dev";
+        }
+        String release = Updater.installedVersion();
+        return release == null ? version : release + " (" + version + ")";
+    }
+
+    private static String readAll(java.io.InputStream in) throws IOException {
+        try {
+            java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+            byte[] buf = new byte[4096];
+            int n;
+            while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+            return new String(out.toByteArray(), "UTF-8");
+        } finally {
+            in.close();
+        }
     }
 
     private static String hostname() {
